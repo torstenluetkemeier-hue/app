@@ -1,0 +1,14 @@
+# Node
+node_modules/
+server/data/
+.env
+
+# Xcode / Swift
+.DS_Store
+build/
+DerivedData/
+.build/
+.swiftpm/
+*.xcodeproj/
+xcuserdata/
+*.xcuserstate

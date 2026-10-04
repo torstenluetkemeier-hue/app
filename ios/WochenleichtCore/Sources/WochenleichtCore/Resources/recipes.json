@@ -1,0 +1,1848 @@
+[
+ {
+  "id": "overnight_oats",
+  "name": "Overnight Oats mit Beeren",
+  "mealType": "breakfast",
+  "minutes": 5,
+  "tags": [
+   "vegetarisch",
+   "meal-prep"
+  ],
+  "ingredients": [
+   {
+    "ingredientId": "haferflocken",
+    "amount": 50
+   },
+   {
+    "ingredientId": "milch",
+    "amount": 150
+   },
+   {
+    "ingredientId": "skyr",
+    "amount": 100
+   },
+   {
+    "ingredientId": "beeren_tk",
+    "amount": 100
+   },
+   {
+    "ingredientId": "chiasamen",
+    "amount": 10
+   },
+   {
+    "ingredientId": "zimt",
+    "amount": 1
+   }
+  ],
+  "steps": [
+   "Haferflocken, Chiasamen und Zimt in ein Glas geben.",
+   "Milch und Skyr unterrühren.",
+   "Beeren daraufgeben und über Nacht im Kühlschrank quellen lassen."
+  ]
+ },
+ {
+  "id": "skyr_apfel",
+  "name": "Skyr-Bowl mit Apfel & Walnüssen",
+  "mealType": "breakfast",
+  "minutes": 5,
+  "tags": [
+   "vegetarisch",
+   "proteinreich"
+  ],
+  "ingredients": [
+   {
+    "ingredientId": "skyr",
+    "amount": 200
+   },
+   {
+    "ingredientId": "apfel",
+    "amount": 1
+   },
+   {
+    "ingredientId": "walnuesse",
+    "amount": 10
+   },
+   {
+    "ingredientId": "zimt",
+    "amount": 1
+   },
+   {
+    "ingredientId": "honig",
+    "amount": 5
+   }
+  ],
+  "steps": [
+   "Apfel würfeln.",
+   "Skyr in eine Schale geben, Apfel und gehackte Walnüsse darauf verteilen.",
+   "Mit Zimt und Honig verfeinern."
+  ]
+ },
+ {
+  "id": "ruehrei_spinat",
+  "name": "Rührei mit Spinat & Vollkornbrot",
+  "mealType": "breakfast",
+  "minutes": 10,
+  "tags": [
+   "vegetarisch",
+   "proteinreich"
+  ],
+  "ingredients": [
+   {
+    "ingredientId": "ei",
+    "amount": 2
+   },
+   {
+    "ingredientId": "spinat",
+    "amount": 50
+   },
+   {
+    "ingredientId": "vollkornbrot",
+    "amount": 50
+   },
+   {
+    "ingredientId": "olivenoel",
+    "amount": 5
+   },
+   {
+    "ingredientId": "salz",
+    "amount": 1
+   },
+   {
+    "ingredientId": "pfeffer",
+    "amount": 0.5
+   }
+  ],
+  "steps": [
+   "Eier verquirlen, salzen und pfeffern.",
+   "Spinat im Öl kurz andünsten.",
+   "Eier dazugeben und bei mittlerer Hitze stocken lassen.",
+   "Mit dem Brot servieren."
+  ]
+ },
+ {
+  "id": "brot_frischkaese",
+  "name": "Vollkornbrot mit Frischkäse, Tomate & Gurke",
+  "mealType": "breakfast",
+  "minutes": 5,
+  "tags": [
+   "vegetarisch",
+   "schnell"
+  ],
+  "ingredients": [
+   {
+    "ingredientId": "vollkornbrot",
+    "amount": 80
+   },
+   {
+    "ingredientId": "frischkaese",
+    "amount": 30
+   },
+   {
+    "ingredientId": "tomate",
+    "amount": 100
+   },
+   {
+    "ingredientId": "gurke",
+    "amount": 0.25
+   },
+   {
+    "ingredientId": "pfeffer",
+    "amount": 0.5
+   }
+  ],
+  "steps": [
+   "Brot mit Frischkäse bestreichen.",
+   "Mit Tomaten- und Gurkenscheiben belegen und pfeffern."
+  ]
+ },
+ {
+  "id": "quark_banane",
+  "name": "Quark mit Banane & Erdnussmus",
+  "mealType": "breakfast",
+  "minutes": 5,
+  "tags": [
+   "vegetarisch",
+   "proteinreich"
+  ],
+  "ingredients": [
+   {
+    "ingredientId": "magerquark",
+    "amount": 200
+   },
+   {
+    "ingredientId": "banane",
+    "amount": 1
+   },
+   {
+    "ingredientId": "erdnussmus",
+    "amount": 10
+   },
+   {
+    "ingredientId": "zimt",
+    "amount": 1
+   }
+  ],
+  "steps": [
+   "Quark mit etwas Wasser cremig rühren.",
+   "Banane in Scheiben schneiden und darauf verteilen.",
+   "Erdnussmus und Zimt darübergeben."
+  ]
+ },
+ {
+  "id": "porridge_apfel",
+  "name": "Porridge mit Apfel & Zimt",
+  "mealType": "breakfast",
+  "minutes": 10,
+  "tags": [
+   "vegetarisch"
+  ],
+  "ingredients": [
+   {
+    "ingredientId": "haferflocken",
+    "amount": 50
+   },
+   {
+    "ingredientId": "milch",
+    "amount": 200
+   },
+   {
+    "ingredientId": "apfel",
+    "amount": 1
+   },
+   {
+    "ingredientId": "zimt",
+    "amount": 1
+   },
+   {
+    "ingredientId": "mandeln",
+    "amount": 10
+   }
+  ],
+  "steps": [
+   "Haferflocken mit Milch aufkochen und 3–4 Minuten köcheln.",
+   "Apfel reiben und unterrühren.",
+   "Mit Zimt und gehackten Mandeln servieren."
+  ]
+ },
+ {
+  "id": "omelett_pilze",
+  "name": "Omelett mit Pilzen & Tomaten",
+  "mealType": "breakfast",
+  "minutes": 15,
+  "tags": [
+   "vegetarisch",
+   "low-carb"
+  ],
+  "ingredients": [
+   {
+    "ingredientId": "ei",
+    "amount": 2
+   },
+   {
+    "ingredientId": "champignons",
+    "amount": 100
+   },
+   {
+    "ingredientId": "kirschtomate",
+    "amount": 80
+   },
+   {
+    "ingredientId": "olivenoel",
+    "amount": 5
+   },
+   {
+    "ingredientId": "petersilie",
+    "amount": 5
+   },
+   {
+    "ingredientId": "salz",
+    "amount": 1
+   },
+   {
+    "ingredientId": "pfeffer",
+    "amount": 0.5
+   }
+  ],
+  "steps": [
+   "Pilze in Scheiben schneiden und im Öl anbraten.",
+   "Tomaten halbieren und kurz mitbraten.",
+   "Verquirlte, gewürzte Eier darübergießen und stocken lassen.",
+   "Mit Petersilie bestreuen."
+  ]
+ },
+ {
+  "id": "avocado_ei_brot",
+  "name": "Avocado-Ei-Brot",
+  "mealType": "breakfast",
+  "minutes": 10,
+  "tags": [
+   "vegetarisch"
+  ],
+  "ingredients": [
+   {
+    "ingredientId": "vollkornbrot",
+    "amount": 50
+   },
+   {
+    "ingredientId": "avocado",
+    "amount": 0.5
+   },
+   {
+    "ingredientId": "ei",
+    "amount": 1
+   },
+   {
+    "ingredientId": "zitrone",
+    "amount": 0.25
+   },
+   {
+    "ingredientId": "chiliflocken",
+    "amount": 0.5
+   },
+   {
+    "ingredientId": "salz",
+    "amount": 0.5
+   }
+  ],
+  "steps": [
+   "Ei 7 Minuten kochen.",
+   "Avocado mit Zitronensaft und Salz zerdrücken und aufs Brot streichen.",
+   "Ei in Scheiben darauflegen, mit Chili bestreuen."
+  ]
+ },
+ {
+  "id": "joghurt_heidelbeer",
+  "name": "Joghurt mit Heidelbeeren & Haferflocken",
+  "mealType": "breakfast",
+  "minutes": 5,
+  "tags": [
+   "vegetarisch",
+   "schnell"
+  ],
+  "ingredients": [
+   {
+    "ingredientId": "joghurt",
+    "amount": 200
+   },
+   {
+    "ingredientId": "heidelbeeren",
+    "amount": 125
+   },
+   {
+    "ingredientId": "haferflocken",
+    "amount": 30
+   },
+   {
+    "ingredientId": "honig",
+    "amount": 5
+   }
+  ],
+  "steps": [
+   "Joghurt in eine Schale geben.",
+   "Heidelbeeren und Haferflocken darauf verteilen.",
+   "Mit Honig beträufeln."
+  ]
+ },
+ {
+  "id": "huettenkaese_brot",
+  "name": "Hüttenkäse-Brot mit Tomaten",
+  "mealType": "breakfast",
+  "minutes": 5,
+  "tags": [
+   "vegetarisch",
+   "proteinreich"
+  ],
+  "ingredients": [
+   {
+    "ingredientId": "vollkornbrot",
+    "amount": 50
+   },
+   {
+    "ingredientId": "huettenkaese",
+    "amount": 150
+   },
+   {
+    "ingredientId": "kirschtomate",
+    "amount": 100
+   },
+   {
+    "ingredientId": "pfeffer",
+    "amount": 0.5
+   },
+   {
+    "ingredientId": "salz",
+    "amount": 0.5
+   }
+  ],
+  "steps": [
+   "Brot mit Hüttenkäse bestreichen.",
+   "Tomaten halbieren, darauflegen, salzen und pfeffern."
+  ]
+ },
+ {
+  "id": "protein_pancakes",
+  "name": "Protein-Pancakes mit Beeren",
+  "mealType": "breakfast",
+  "minutes": 20,
+  "tags": [
+   "vegetarisch",
+   "proteinreich"
+  ],
+  "ingredients": [
+   {
+    "ingredientId": "haferflocken",
+    "amount": 40
+   },
+   {
+    "ingredientId": "ei",
+    "amount": 1
+   },
+   {
+    "ingredientId": "banane",
+    "amount": 1
+   },
+   {
+    "ingredientId": "magerquark",
+    "amount": 100
+   },
+   {
+    "ingredientId": "beeren_tk",
+    "amount": 100
+   },
+   {
+    "ingredientId": "olivenoel",
+    "amount": 3
+   },
+   {
+    "ingredientId": "zimt",
+    "amount": 1
+   }
+  ],
+  "steps": [
+   "Haferflocken, Ei, Banane, Quark und Zimt zu einem Teig pürieren.",
+   "In wenig Öl kleine Pancakes von beiden Seiten goldbraun backen.",
+   "Beeren erwärmen und darübergeben."
+  ]
+ },
+ {
+  "id": "linsen_dal",
+  "name": "Linsen-Dal mit Spinat",
+  "mealType": "lunch",
+  "minutes": 30,
+  "tags": [
+   "vegan",
+   "meal-prep"
+  ],
+  "ingredients": [
+   {
+    "ingredientId": "rote_linsen",
+    "amount": 70
+   },
+   {
+    "ingredientId": "gehackte_tomaten",
+    "amount": 200
+   },
+   {
+    "ingredientId": "kokosmilch",
+    "amount": 50
+   },
+   {
+    "ingredientId": "zwiebel",
+    "amount": 0.5
+   },
+   {
+    "ingredientId": "knoblauch",
+    "amount": 1
+   },
+   {
+    "ingredientId": "ingwer",
+    "amount": 5
+   },
+   {
+    "ingredientId": "spinat",
+    "amount": 75
+   },
+   {
+    "ingredientId": "currypulver",
+    "amount": 2
+   },
+   {
+    "ingredientId": "kurkuma",
+    "amount": 1
+   },
+   {
+    "ingredientId": "olivenoel",
+    "amount": 5
+   },
+   {
+    "ingredientId": "gemuesebruehe",
+    "amount": 3
+   },
+   {
+    "ingredientId": "salz",
+    "amount": 0.5
+   }
+  ],
+  "steps": [
+   "Zwiebel, Knoblauch und Ingwer fein hacken und im Öl andünsten.",
+   "Curry und Kurkuma kurz mitrösten.",
+   "Linsen, Tomaten, Kokosmilch und 200 ml Brühe zugeben, 15 Minuten köcheln.",
+   "Spinat unterheben, abschmecken."
+  ]
+ },
+ {
+  "id": "haehnchen_quinoa",
+  "name": "Hähnchen-Quinoa-Bowl",
+  "mealType": "lunch",
+  "minutes": 25,
+  "tags": [
+   "proteinreich",
+   "meal-prep"
+  ],
+  "ingredients": [
+   {
+    "ingredientId": "haehnchenbrust",
+    "amount": 120
+   },
+   {
+    "ingredientId": "quinoa",
+    "amount": 60
+   },
+   {
+    "ingredientId": "paprika",
+    "amount": 0.5
+   },
+   {
+    "ingredientId": "gurke",
+    "amount": 0.25
+   },
+   {
+    "ingredientId": "kirschtomate",
+    "amount": 80
+   },
+   {
+    "ingredientId": "olivenoel",
+    "amount": 7
+   },
+   {
+    "ingredientId": "zitrone",
+    "amount": 0.25
+   },
+   {
+    "ingredientId": "paprikapulver",
+    "amount": 1
+   },
+   {
+    "ingredientId": "salz",
+    "amount": 0.5
+   },
+   {
+    "ingredientId": "pfeffer",
+    "amount": 0.5
+   }
+  ],
+  "steps": [
+   "Quinoa nach Packungsanweisung garen.",
+   "Hähnchen mit Paprikapulver, Salz und Pfeffer würzen und in der Hälfte des Öls braten.",
+   "Gemüse klein schneiden.",
+   "Alles in einer Schale anrichten, mit Zitrone und restlichem Öl beträufeln."
+  ]
+ },
+ {
+  "id": "griechischer_salat",
+  "name": "Griechischer Salat mit Kichererbsen",
+  "mealType": "lunch",
+  "minutes": 10,
+  "tags": [
+   "vegetarisch",
+   "schnell"
+  ],
+  "ingredients": [
+   {
+    "ingredientId": "tomate",
+    "amount": 150
+   },
+   {
+    "ingredientId": "gurke",
+    "amount": 0.5
+   },
+   {
+    "ingredientId": "rote_zwiebel",
+    "amount": 0.25
+   },
+   {
+    "ingredientId": "feta",
+    "amount": 50
+   },
+   {
+    "ingredientId": "kichererbsen",
+    "amount": 100
+   },
+   {
+    "ingredientId": "olivenoel",
+    "amount": 7
+   },
+   {
+    "ingredientId": "oregano",
+    "amount": 1
+   },
+   {
+    "ingredientId": "balsamico",
+    "amount": 10
+   }
+  ],
+  "steps": [
+   "Tomaten, Gurke und Zwiebel klein schneiden.",
+   "Kichererbsen abspülen und dazugeben.",
+   "Feta darüberbröseln.",
+   "Mit Öl, Balsamico und Oregano anmachen."
+  ]
+ },
+ {
+  "id": "wrap_pute",
+  "name": "Vollkornwrap mit Pute & Gemüse",
+  "mealType": "lunch",
+  "minutes": 10,
+  "tags": [
+   "schnell",
+   "to-go"
+  ],
+  "ingredients": [
+   {
+    "ingredientId": "vollkornwrap",
+    "amount": 1
+   },
+   {
+    "ingredientId": "putenaufschnitt",
+    "amount": 60
+   },
+   {
+    "ingredientId": "frischkaese",
+    "amount": 20
+   },
+   {
+    "ingredientId": "salatmix",
+    "amount": 30
+   },
+   {
+    "ingredientId": "tomate",
+    "amount": 80
+   },
+   {
+    "ingredientId": "gurke",
+    "amount": 0.2
+   }
+  ],
+  "steps": [
+   "Wrap mit Frischkäse bestreichen.",
+   "Mit Salat, Pute, Tomaten- und Gurkenscheiben belegen.",
+   "Fest aufrollen und halbieren."
+  ]
+ },
+ {
+  "id": "thunfisch_bulgur",
+  "name": "Thunfisch-Bulgur-Salat",
+  "mealType": "lunch",
+  "minutes": 20,
+  "tags": [
+   "proteinreich",
+   "meal-prep"
+  ],
+  "ingredients": [
+   {
+    "ingredientId": "bulgur",
+    "amount": 60
+   },
+   {
+    "ingredientId": "thunfisch",
+    "amount": 100
+   },
+   {
+    "ingredientId": "kirschtomate",
+    "amount": 100
+   },
+   {
+    "ingredientId": "gurke",
+    "amount": 0.25
+   },
+   {
+    "ingredientId": "petersilie",
+    "amount": 10
+   },
+   {
+    "ingredientId": "zitrone",
+    "amount": 0.5
+   },
+   {
+    "ingredientId": "olivenoel",
+    "amount": 7
+   },
+   {
+    "ingredientId": "fruehlingszwiebel",
+    "amount": 20
+   },
+   {
+    "ingredientId": "salz",
+    "amount": 0.5
+   },
+   {
+    "ingredientId": "pfeffer",
+    "amount": 0.5
+   }
+  ],
+  "steps": [
+   "Bulgur mit kochendem Wasser übergießen und 10 Minuten quellen lassen.",
+   "Gemüse und Petersilie klein schneiden.",
+   "Thunfisch abtropfen lassen und alles mischen.",
+   "Mit Zitrone, Öl, Salz und Pfeffer abschmecken."
+  ]
+ },
+ {
+  "id": "kartoffel_quark",
+  "name": "Pellkartoffeln mit Kräuterquark",
+  "mealType": "lunch",
+  "minutes": 25,
+  "tags": [
+   "vegetarisch",
+   "proteinreich"
+  ],
+  "ingredients": [
+   {
+    "ingredientId": "kartoffel",
+    "amount": 300
+   },
+   {
+    "ingredientId": "magerquark",
+    "amount": 150
+   },
+   {
+    "ingredientId": "fruehlingszwiebel",
+    "amount": 20
+   },
+   {
+    "ingredientId": "gurke",
+    "amount": 0.25
+   },
+   {
+    "ingredientId": "olivenoel",
+    "amount": 5
+   },
+   {
+    "ingredientId": "salz",
+    "amount": 1
+   },
+   {
+    "ingredientId": "pfeffer",
+    "amount": 0.5
+   }
+  ],
+  "steps": [
+   "Kartoffeln ca. 20 Minuten kochen.",
+   "Quark mit Öl, fein geschnittenen Frühlingszwiebeln, Salz und Pfeffer verrühren.",
+   "Gurke in Scheiben dazu servieren."
+  ]
+ },
+ {
+  "id": "pasta_thunfisch",
+  "name": "Vollkornpasta mit Tomaten-Thunfisch-Sauce",
+  "mealType": "lunch",
+  "minutes": 20,
+  "tags": [
+   "proteinreich"
+  ],
+  "ingredients": [
+   {
+    "ingredientId": "vollkornnudeln",
+    "amount": 75
+   },
+   {
+    "ingredientId": "thunfisch",
+    "amount": 75
+   },
+   {
+    "ingredientId": "gehackte_tomaten",
+    "amount": 200
+   },
+   {
+    "ingredientId": "zwiebel",
+    "amount": 0.5
+   },
+   {
+    "ingredientId": "knoblauch",
+    "amount": 1
+   },
+   {
+    "ingredientId": "olivenoel",
+    "amount": 5
+   },
+   {
+    "ingredientId": "oregano",
+    "amount": 1
+   },
+   {
+    "ingredientId": "parmesan",
+    "amount": 10
+   },
+   {
+    "ingredientId": "salz",
+    "amount": 0.5
+   }
+  ],
+  "steps": [
+   "Nudeln bissfest kochen.",
+   "Zwiebel und Knoblauch im Öl andünsten, Tomaten und Oregano zugeben, 10 Minuten köcheln.",
+   "Thunfisch unterheben, abschmecken.",
+   "Mit den Nudeln und Parmesan servieren."
+  ]
+ },
+ {
+  "id": "chili_sin_carne",
+  "name": "Chili sin Carne mit Reis",
+  "mealType": "lunch",
+  "minutes": 30,
+  "tags": [
+   "vegan",
+   "meal-prep"
+  ],
+  "ingredients": [
+   {
+    "ingredientId": "kidneybohnen",
+    "amount": 120
+   },
+   {
+    "ingredientId": "mais",
+    "amount": 60
+   },
+   {
+    "ingredientId": "gehackte_tomaten",
+    "amount": 200
+   },
+   {
+    "ingredientId": "paprika",
+    "amount": 0.5
+   },
+   {
+    "ingredientId": "zwiebel",
+    "amount": 0.5
+   },
+   {
+    "ingredientId": "knoblauch",
+    "amount": 1
+   },
+   {
+    "ingredientId": "kreuzkuemmel",
+    "amount": 1
+   },
+   {
+    "ingredientId": "paprikapulver",
+    "amount": 2
+   },
+   {
+    "ingredientId": "chiliflocken",
+    "amount": 0.5
+   },
+   {
+    "ingredientId": "olivenoel",
+    "amount": 5
+   },
+   {
+    "ingredientId": "naturreis",
+    "amount": 50
+   },
+   {
+    "ingredientId": "salz",
+    "amount": 0.5
+   }
+  ],
+  "steps": [
+   "Reis garen.",
+   "Zwiebel, Knoblauch und Paprika würfeln und im Öl anbraten.",
+   "Gewürze kurz mitrösten, Tomaten, Bohnen und Mais zugeben.",
+   "15 Minuten köcheln, mit Reis servieren."
+  ]
+ },
+ {
+  "id": "couscous_feta",
+  "name": "Couscous-Salat mit Feta",
+  "mealType": "lunch",
+  "minutes": 15,
+  "tags": [
+   "vegetarisch",
+   "meal-prep"
+  ],
+  "ingredients": [
+   {
+    "ingredientId": "couscous",
+    "amount": 60
+   },
+   {
+    "ingredientId": "feta",
+    "amount": 40
+   },
+   {
+    "ingredientId": "gurke",
+    "amount": 0.25
+   },
+   {
+    "ingredientId": "paprika",
+    "amount": 0.5
+   },
+   {
+    "ingredientId": "petersilie",
+    "amount": 10
+   },
+   {
+    "ingredientId": "zitrone",
+    "amount": 0.5
+   },
+   {
+    "ingredientId": "olivenoel",
+    "amount": 7
+   },
+   {
+    "ingredientId": "salz",
+    "amount": 0.5
+   },
+   {
+    "ingredientId": "pfeffer",
+    "amount": 0.5
+   }
+  ],
+  "steps": [
+   "Couscous mit kochendem Wasser übergießen und 5 Minuten quellen lassen.",
+   "Gemüse und Petersilie klein schneiden.",
+   "Alles mischen, Feta darüberbröseln.",
+   "Mit Zitrone, Öl, Salz und Pfeffer abschmecken."
+  ]
+ },
+ {
+  "id": "suesskartoffel_bowl",
+  "name": "Süßkartoffel-Kichererbsen-Bowl",
+  "mealType": "lunch",
+  "minutes": 35,
+  "tags": [
+   "vegetarisch"
+  ],
+  "ingredients": [
+   {
+    "ingredientId": "suesskartoffel",
+    "amount": 200
+   },
+   {
+    "ingredientId": "kichererbsen",
+    "amount": 80
+   },
+   {
+    "ingredientId": "spinat",
+    "amount": 50
+   },
+   {
+    "ingredientId": "joghurt",
+    "amount": 50
+   },
+   {
+    "ingredientId": "olivenoel",
+    "amount": 7
+   },
+   {
+    "ingredientId": "kreuzkuemmel",
+    "amount": 1
+   },
+   {
+    "ingredientId": "paprikapulver",
+    "amount": 1
+   },
+   {
+    "ingredientId": "zitrone",
+    "amount": 0.25
+   },
+   {
+    "ingredientId": "salz",
+    "amount": 0.5
+   }
+  ],
+  "steps": [
+   "Süßkartoffel würfeln, mit Kichererbsen, Öl und Gewürzen mischen.",
+   "Bei 200 °C ca. 25 Minuten rösten.",
+   "Auf Spinat anrichten.",
+   "Joghurt mit Zitronensaft und Salz verrühren und darübergeben."
+  ]
+ },
+ {
+  "id": "tofu_wok",
+  "name": "Asia-Gemüsepfanne mit Tofu",
+  "mealType": "lunch",
+  "minutes": 25,
+  "tags": [
+   "vegan",
+   "proteinreich"
+  ],
+  "ingredients": [
+   {
+    "ingredientId": "tofu",
+    "amount": 150
+   },
+   {
+    "ingredientId": "wokgemuese_tk",
+    "amount": 250
+   },
+   {
+    "ingredientId": "sojasauce",
+    "amount": 15
+   },
+   {
+    "ingredientId": "ingwer",
+    "amount": 5
+   },
+   {
+    "ingredientId": "knoblauch",
+    "amount": 1
+   },
+   {
+    "ingredientId": "naturreis",
+    "amount": 50
+   },
+   {
+    "ingredientId": "olivenoel",
+    "amount": 5
+   }
+  ],
+  "steps": [
+   "Reis garen.",
+   "Tofu würfeln und im Öl knusprig braten.",
+   "Wokgemüse, Ingwer und Knoblauch zugeben und 5 Minuten braten.",
+   "Mit Sojasauce ablöschen und mit Reis servieren."
+  ]
+ },
+ {
+  "id": "ofenlachs",
+  "name": "Ofenlachs mit Brokkoli & Kartoffeln",
+  "mealType": "dinner",
+  "minutes": 35,
+  "tags": [
+   "omega-3",
+   "proteinreich"
+  ],
+  "ingredients": [
+   {
+    "ingredientId": "lachs_tk",
+    "amount": 125
+   },
+   {
+    "ingredientId": "brokkoli",
+    "amount": 200
+   },
+   {
+    "ingredientId": "kartoffel",
+    "amount": 200
+   },
+   {
+    "ingredientId": "olivenoel",
+    "amount": 5
+   },
+   {
+    "ingredientId": "zitrone",
+    "amount": 0.25
+   },
+   {
+    "ingredientId": "salz",
+    "amount": 0.5
+   },
+   {
+    "ingredientId": "pfeffer",
+    "amount": 0.5
+   }
+  ],
+  "steps": [
+   "Kartoffeln vierteln, mit Öl, Salz und Pfeffer aufs Blech geben, 15 Minuten bei 200 °C backen.",
+   "Lachs und Brokkoliröschen dazulegen, weitere 15 Minuten backen.",
+   "Mit Zitronensaft beträufeln."
+  ]
+ },
+ {
+  "id": "zoodles_bolognese",
+  "name": "Zucchini-Nudeln Bolognese",
+  "mealType": "dinner",
+  "minutes": 25,
+  "tags": [
+   "low-carb",
+   "proteinreich"
+  ],
+  "ingredients": [
+   {
+    "ingredientId": "rinderhack",
+    "amount": 100
+   },
+   {
+    "ingredientId": "zucchini",
+    "amount": 1.5
+   },
+   {
+    "ingredientId": "passierte_tomaten",
+    "amount": 200
+   },
+   {
+    "ingredientId": "zwiebel",
+    "amount": 0.5
+   },
+   {
+    "ingredientId": "knoblauch",
+    "amount": 1
+   },
+   {
+    "ingredientId": "ital_kraeuter",
+    "amount": 1
+   },
+   {
+    "ingredientId": "olivenoel",
+    "amount": 5
+   },
+   {
+    "ingredientId": "parmesan",
+    "amount": 10
+   },
+   {
+    "ingredientId": "salz",
+    "amount": 0.5
+   }
+  ],
+  "steps": [
+   "Hack mit Zwiebel und Knoblauch im Öl krümelig braten.",
+   "Tomaten und Kräuter zugeben, 15 Minuten köcheln.",
+   "Zucchini in feine Streifen schneiden und 2 Minuten dünsten.",
+   "Mit Sauce und Parmesan servieren."
+  ]
+ },
+ {
+  "id": "haehnchen_curry",
+  "name": "Hähnchen-Gemüse-Curry",
+  "mealType": "dinner",
+  "minutes": 30,
+  "tags": [
+   "proteinreich"
+  ],
+  "ingredients": [
+   {
+    "ingredientId": "haehnchenbrust",
+    "amount": 120
+   },
+   {
+    "ingredientId": "kokosmilch",
+    "amount": 100
+   },
+   {
+    "ingredientId": "paprika",
+    "amount": 0.5
+   },
+   {
+    "ingredientId": "zucchini",
+    "amount": 0.5
+   },
+   {
+    "ingredientId": "zwiebel",
+    "amount": 0.5
+   },
+   {
+    "ingredientId": "currypulver",
+    "amount": 3
+   },
+   {
+    "ingredientId": "ingwer",
+    "amount": 5
+   },
+   {
+    "ingredientId": "naturreis",
+    "amount": 50
+   },
+   {
+    "ingredientId": "olivenoel",
+    "amount": 5
+   },
+   {
+    "ingredientId": "salz",
+    "amount": 0.5
+   }
+  ],
+  "steps": [
+   "Reis garen.",
+   "Hähnchen würfeln und im Öl anbraten.",
+   "Zwiebel, Ingwer und Gemüse zugeben, Curry kurz mitrösten.",
+   "Mit Kokosmilch ablöschen, 10 Minuten köcheln, mit Reis servieren."
+  ]
+ },
+ {
+  "id": "kabeljau_couscous",
+  "name": "Kabeljau mit Ofentomaten & Couscous",
+  "mealType": "dinner",
+  "minutes": 30,
+  "tags": [
+   "proteinreich",
+   "fettarm"
+  ],
+  "ingredients": [
+   {
+    "ingredientId": "kabeljau_tk",
+    "amount": 150
+   },
+   {
+    "ingredientId": "kirschtomate",
+    "amount": 150
+   },
+   {
+    "ingredientId": "couscous",
+    "amount": 50
+   },
+   {
+    "ingredientId": "olivenoel",
+    "amount": 7
+   },
+   {
+    "ingredientId": "zitrone",
+    "amount": 0.25
+   },
+   {
+    "ingredientId": "knoblauch",
+    "amount": 1
+   },
+   {
+    "ingredientId": "ital_kraeuter",
+    "amount": 1
+   },
+   {
+    "ingredientId": "salz",
+    "amount": 0.5
+   }
+  ],
+  "steps": [
+   "Kabeljau und halbierte Tomaten mit Knoblauch, Kräutern und Öl in eine Form geben.",
+   "Bei 200 °C ca. 20 Minuten garen.",
+   "Couscous mit kochendem Wasser quellen lassen.",
+   "Mit Zitronensaft servieren."
+  ]
+ },
+ {
+  "id": "gefuellte_paprika",
+  "name": "Gefüllte Paprika mit Hack & Reis",
+  "mealType": "dinner",
+  "minutes": 45,
+  "tags": [
+   "proteinreich"
+  ],
+  "ingredients": [
+   {
+    "ingredientId": "paprika",
+    "amount": 2
+   },
+   {
+    "ingredientId": "rinderhack",
+    "amount": 80
+   },
+   {
+    "ingredientId": "naturreis",
+    "amount": 30
+   },
+   {
+    "ingredientId": "passierte_tomaten",
+    "amount": 150
+   },
+   {
+    "ingredientId": "zwiebel",
+    "amount": 0.5
+   },
+   {
+    "ingredientId": "mozzarella",
+    "amount": 30
+   },
+   {
+    "ingredientId": "paprikapulver",
+    "amount": 1
+   },
+   {
+    "ingredientId": "oregano",
+    "amount": 1
+   },
+   {
+    "ingredientId": "salz",
+    "amount": 0.5
+   }
+  ],
+  "steps": [
+   "Reis vorgaren.",
+   "Hack mit Zwiebel anbraten, mit Reis und Gewürzen mischen.",
+   "Paprika aushöhlen, füllen und in eine Form mit den passierten Tomaten setzen.",
+   "Mit Mozzarella belegen und 25 Minuten bei 190 °C backen."
+  ]
+ },
+ {
+  "id": "blumenkohl_curry",
+  "name": "Blumenkohl-Kichererbsen-Curry",
+  "mealType": "dinner",
+  "minutes": 30,
+  "tags": [
+   "vegan",
+   "low-carb"
+  ],
+  "ingredients": [
+   {
+    "ingredientId": "blumenkohl",
+    "amount": 300
+   },
+   {
+    "ingredientId": "kichererbsen",
+    "amount": 100
+   },
+   {
+    "ingredientId": "gehackte_tomaten",
+    "amount": 200
+   },
+   {
+    "ingredientId": "kokosmilch",
+    "amount": 75
+   },
+   {
+    "ingredientId": "zwiebel",
+    "amount": 0.5
+   },
+   {
+    "ingredientId": "knoblauch",
+    "amount": 1
+   },
+   {
+    "ingredientId": "ingwer",
+    "amount": 5
+   },
+   {
+    "ingredientId": "currypulver",
+    "amount": 3
+   },
+   {
+    "ingredientId": "kurkuma",
+    "amount": 1
+   },
+   {
+    "ingredientId": "olivenoel",
+    "amount": 5
+   },
+   {
+    "ingredientId": "salz",
+    "amount": 0.5
+   }
+  ],
+  "steps": [
+   "Zwiebel, Knoblauch und Ingwer im Öl andünsten.",
+   "Gewürze kurz mitrösten.",
+   "Blumenkohlröschen, Kichererbsen, Tomaten und Kokosmilch zugeben.",
+   "Zugedeckt 15 Minuten köcheln lassen."
+  ]
+ },
+ {
+  "id": "garnelen_pasta",
+  "name": "Garnelen-Zucchini-Pasta",
+  "mealType": "dinner",
+  "minutes": 20,
+  "tags": [
+   "proteinreich"
+  ],
+  "ingredients": [
+   {
+    "ingredientId": "garnelen_tk",
+    "amount": 150
+   },
+   {
+    "ingredientId": "zucchini",
+    "amount": 1
+   },
+   {
+    "ingredientId": "kirschtomate",
+    "amount": 100
+   },
+   {
+    "ingredientId": "knoblauch",
+    "amount": 2
+   },
+   {
+    "ingredientId": "chiliflocken",
+    "amount": 0.5
+   },
+   {
+    "ingredientId": "olivenoel",
+    "amount": 7
+   },
+   {
+    "ingredientId": "vollkornnudeln",
+    "amount": 60
+   },
+   {
+    "ingredientId": "petersilie",
+    "amount": 5
+   },
+   {
+    "ingredientId": "salz",
+    "amount": 0.5
+   }
+  ],
+  "steps": [
+   "Nudeln kochen.",
+   "Garnelen mit Knoblauch und Chili im Öl braten.",
+   "Zucchini und Tomaten zugeben und 4 Minuten mitbraten.",
+   "Mit Nudeln mischen und Petersilie bestreuen."
+  ]
+ },
+ {
+  "id": "puten_bulgur",
+  "name": "Putenpfanne mit Gemüse & Bulgur",
+  "mealType": "dinner",
+  "minutes": 25,
+  "tags": [
+   "proteinreich"
+  ],
+  "ingredients": [
+   {
+    "ingredientId": "putenbrust",
+    "amount": 130
+   },
+   {
+    "ingredientId": "paprika",
+    "amount": 0.5
+   },
+   {
+    "ingredientId": "zucchini",
+    "amount": 0.5
+   },
+   {
+    "ingredientId": "zwiebel",
+    "amount": 0.5
+   },
+   {
+    "ingredientId": "bulgur",
+    "amount": 50
+   },
+   {
+    "ingredientId": "paprikapulver",
+    "amount": 1
+   },
+   {
+    "ingredientId": "olivenoel",
+    "amount": 5
+   },
+   {
+    "ingredientId": "gemuesebruehe",
+    "amount": 3
+   },
+   {
+    "ingredientId": "salz",
+    "amount": 0.5
+   }
+  ],
+  "steps": [
+   "Bulgur in Brühe garen.",
+   "Pute in Streifen schneiden und im Öl anbraten.",
+   "Gemüse zugeben und 5 Minuten mitbraten, mit Paprika würzen.",
+   "Mit Bulgur servieren."
+  ]
+ },
+ {
+  "id": "frittata",
+  "name": "Gemüse-Frittata mit Salat",
+  "mealType": "dinner",
+  "minutes": 25,
+  "tags": [
+   "vegetarisch",
+   "low-carb"
+  ],
+  "ingredients": [
+   {
+    "ingredientId": "ei",
+    "amount": 3
+   },
+   {
+    "ingredientId": "zucchini",
+    "amount": 0.5
+   },
+   {
+    "ingredientId": "paprika",
+    "amount": 0.5
+   },
+   {
+    "ingredientId": "zwiebel",
+    "amount": 0.5
+   },
+   {
+    "ingredientId": "feta",
+    "amount": 30
+   },
+   {
+    "ingredientId": "salatmix",
+    "amount": 50
+   },
+   {
+    "ingredientId": "olivenoel",
+    "amount": 5
+   },
+   {
+    "ingredientId": "balsamico",
+    "amount": 5
+   },
+   {
+    "ingredientId": "salz",
+    "amount": 0.5
+   },
+   {
+    "ingredientId": "pfeffer",
+    "amount": 0.5
+   }
+  ],
+  "steps": [
+   "Gemüse würfeln und in einer ofenfesten Pfanne im Öl anbraten.",
+   "Verquirlte, gewürzte Eier darübergießen, Feta darüberbröseln.",
+   "Bei 180 °C ca. 12 Minuten im Ofen stocken lassen.",
+   "Mit Salat und Balsamico servieren."
+  ]
+ },
+ {
+  "id": "tomaten_linsen_suppe",
+  "name": "Tomaten-Linsen-Suppe mit Brot",
+  "mealType": "dinner",
+  "minutes": 30,
+  "tags": [
+   "vegan",
+   "meal-prep"
+  ],
+  "ingredients": [
+   {
+    "ingredientId": "rote_linsen",
+    "amount": 50
+   },
+   {
+    "ingredientId": "gehackte_tomaten",
+    "amount": 400
+   },
+   {
+    "ingredientId": "karotte",
+    "amount": 100
+   },
+   {
+    "ingredientId": "zwiebel",
+    "amount": 0.5
+   },
+   {
+    "ingredientId": "knoblauch",
+    "amount": 1
+   },
+   {
+    "ingredientId": "gemuesebruehe",
+    "amount": 5
+   },
+   {
+    "ingredientId": "olivenoel",
+    "amount": 5
+   },
+   {
+    "ingredientId": "vollkornbrot",
+    "amount": 40
+   },
+   {
+    "ingredientId": "salz",
+    "amount": 0.5
+   }
+  ],
+  "steps": [
+   "Zwiebel, Knoblauch und Karotte würfeln und im Öl andünsten.",
+   "Linsen, Tomaten und 300 ml Brühe zugeben.",
+   "20 Minuten köcheln und pürieren.",
+   "Mit Brot servieren."
+  ]
+ },
+ {
+  "id": "asia_haehnchen",
+  "name": "Asia-Hähnchen mit Brokkoli",
+  "mealType": "dinner",
+  "minutes": 25,
+  "tags": [
+   "proteinreich"
+  ],
+  "ingredients": [
+   {
+    "ingredientId": "haehnchenbrust",
+    "amount": 130
+   },
+   {
+    "ingredientId": "brokkoli",
+    "amount": 200
+   },
+   {
+    "ingredientId": "sojasauce",
+    "amount": 15
+   },
+   {
+    "ingredientId": "ingwer",
+    "amount": 5
+   },
+   {
+    "ingredientId": "knoblauch",
+    "amount": 1
+   },
+   {
+    "ingredientId": "honig",
+    "amount": 5
+   },
+   {
+    "ingredientId": "naturreis",
+    "amount": 50
+   },
+   {
+    "ingredientId": "olivenoel",
+    "amount": 5
+   }
+  ],
+  "steps": [
+   "Reis garen.",
+   "Hähnchen in Streifen im Öl anbraten.",
+   "Brokkoli, Ingwer und Knoblauch zugeben, mit etwas Wasser 5 Minuten dünsten.",
+   "Sojasauce und Honig unterrühren, mit Reis servieren."
+  ]
+ },
+ {
+  "id": "ofengemuese_feta",
+  "name": "Ofengemüse mit Feta & Kichererbsen",
+  "mealType": "dinner",
+  "minutes": 35,
+  "tags": [
+   "vegetarisch"
+  ],
+  "ingredients": [
+   {
+    "ingredientId": "suesskartoffel",
+    "amount": 150
+   },
+   {
+    "ingredientId": "zucchini",
+    "amount": 0.5
+   },
+   {
+    "ingredientId": "paprika",
+    "amount": 0.5
+   },
+   {
+    "ingredientId": "rote_zwiebel",
+    "amount": 0.5
+   },
+   {
+    "ingredientId": "feta",
+    "amount": 50
+   },
+   {
+    "ingredientId": "olivenoel",
+    "amount": 7
+   },
+   {
+    "ingredientId": "thymian",
+    "amount": 1
+   },
+   {
+    "ingredientId": "kichererbsen",
+    "amount": 60
+   },
+   {
+    "ingredientId": "salz",
+    "amount": 0.5
+   }
+  ],
+  "steps": [
+   "Gemüse in Stücke schneiden, mit Kichererbsen, Öl, Thymian und Salz mischen.",
+   "Bei 200 °C ca. 25 Minuten backen.",
+   "Feta darüberbröseln und weitere 5 Minuten backen."
+  ]
+ },
+ {
+  "id": "apfel_mandeln",
+  "name": "Apfel mit Mandeln",
+  "mealType": "snack",
+  "minutes": 1,
+  "tags": [
+   "vegan",
+   "schnell"
+  ],
+  "ingredients": [
+   {
+    "ingredientId": "apfel",
+    "amount": 1
+   },
+   {
+    "ingredientId": "mandeln",
+    "amount": 15
+   }
+  ],
+  "steps": [
+   "Apfel waschen, mit den Mandeln genießen."
+  ]
+ },
+ {
+  "id": "skyr_beeren",
+  "name": "Skyr mit Beeren",
+  "mealType": "snack",
+  "minutes": 3,
+  "tags": [
+   "vegetarisch",
+   "proteinreich"
+  ],
+  "ingredients": [
+   {
+    "ingredientId": "skyr",
+    "amount": 150
+   },
+   {
+    "ingredientId": "beeren_tk",
+    "amount": 100
+   }
+  ],
+  "steps": [
+   "Beeren antauen lassen und mit Skyr verrühren."
+  ]
+ },
+ {
+  "id": "gemuesesticks_dip",
+  "name": "Gemüsesticks mit Quark-Dip",
+  "mealType": "snack",
+  "minutes": 10,
+  "tags": [
+   "vegetarisch",
+   "low-carb"
+  ],
+  "ingredients": [
+   {
+    "ingredientId": "karotte",
+    "amount": 100
+   },
+   {
+    "ingredientId": "gurke",
+    "amount": 0.25
+   },
+   {
+    "ingredientId": "paprika",
+    "amount": 0.5
+   },
+   {
+    "ingredientId": "magerquark",
+    "amount": 100
+   },
+   {
+    "ingredientId": "ital_kraeuter",
+    "amount": 1
+   },
+   {
+    "ingredientId": "salz",
+    "amount": 0.5
+   }
+  ],
+  "steps": [
+   "Gemüse in Sticks schneiden.",
+   "Quark mit Kräutern und Salz verrühren."
+  ]
+ },
+ {
+  "id": "reiswaffeln_erdnuss",
+  "name": "Reiswaffeln mit Erdnussmus & Banane",
+  "mealType": "snack",
+  "minutes": 3,
+  "tags": [
+   "vegan",
+   "schnell"
+  ],
+  "ingredients": [
+   {
+    "ingredientId": "reiswaffeln",
+    "amount": 2
+   },
+   {
+    "ingredientId": "erdnussmus",
+    "amount": 10
+   },
+   {
+    "ingredientId": "banane",
+    "amount": 0.5
+   }
+  ],
+  "steps": [
+   "Reiswaffeln mit Erdnussmus bestreichen und mit Bananenscheiben belegen."
+  ]
+ },
+ {
+  "id": "huettenkaese_tomate",
+  "name": "Hüttenkäse mit Kirschtomaten",
+  "mealType": "snack",
+  "minutes": 3,
+  "tags": [
+   "vegetarisch",
+   "proteinreich"
+  ],
+  "ingredients": [
+   {
+    "ingredientId": "huettenkaese",
+    "amount": 150
+   },
+   {
+    "ingredientId": "kirschtomate",
+    "amount": 100
+   },
+   {
+    "ingredientId": "pfeffer",
+    "amount": 0.5
+   }
+  ],
+  "steps": [
+   "Tomaten halbieren, mit Hüttenkäse anrichten und pfeffern."
+  ]
+ },
+ {
+  "id": "banane_walnuss",
+  "name": "Banane mit Walnüssen",
+  "mealType": "snack",
+  "minutes": 1,
+  "tags": [
+   "vegan",
+   "schnell"
+  ],
+  "ingredients": [
+   {
+    "ingredientId": "banane",
+    "amount": 1
+   },
+   {
+    "ingredientId": "walnuesse",
+    "amount": 10
+   }
+  ],
+  "steps": [
+   "Banane schälen und mit den Walnüssen genießen."
+  ]
+ },
+ {
+  "id": "ei_gurke",
+  "name": "Gekochte Eier mit Gurke",
+  "mealType": "snack",
+  "minutes": 10,
+  "tags": [
+   "vegetarisch",
+   "low-carb"
+  ],
+  "ingredients": [
+   {
+    "ingredientId": "ei",
+    "amount": 2
+   },
+   {
+    "ingredientId": "gurke",
+    "amount": 0.5
+   },
+   {
+    "ingredientId": "salz",
+    "amount": 0.5
+   }
+  ],
+  "steps": [
+   "Eier 8 Minuten kochen.",
+   "Mit Gurkenscheiben und etwas Salz servieren."
+  ]
+ }
+]

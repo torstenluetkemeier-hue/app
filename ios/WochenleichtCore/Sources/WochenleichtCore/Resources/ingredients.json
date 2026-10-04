@@ -1,0 +1,822 @@
+[
+ {
+  "id": "tomate",
+  "name": "Tomaten",
+  "category": "produce",
+  "unit": "g",
+  "packageSize": 500,
+  "kcal": 18,
+  "shelfLifeDays": 7,
+  "isStaple": false
+ },
+ {
+  "id": "kirschtomate",
+  "name": "Kirschtomaten",
+  "category": "produce",
+  "unit": "g",
+  "packageSize": 250,
+  "kcal": 20,
+  "shelfLifeDays": 7,
+  "isStaple": false
+ },
+ {
+  "id": "gurke",
+  "name": "Salatgurke",
+  "category": "produce",
+  "unit": "piece",
+  "packageSize": 1,
+  "kcal": 60,
+  "shelfLifeDays": 7,
+  "isStaple": false
+ },
+ {
+  "id": "paprika",
+  "name": "Paprika",
+  "category": "produce",
+  "unit": "piece",
+  "packageSize": 1,
+  "kcal": 50,
+  "shelfLifeDays": 10,
+  "isStaple": false
+ },
+ {
+  "id": "zucchini",
+  "name": "Zucchini",
+  "category": "produce",
+  "unit": "piece",
+  "packageSize": 1,
+  "kcal": 43,
+  "shelfLifeDays": 10,
+  "isStaple": false
+ },
+ {
+  "id": "zwiebel",
+  "name": "Zwiebeln",
+  "category": "produce",
+  "unit": "piece",
+  "packageSize": 5,
+  "kcal": 40,
+  "shelfLifeDays": 30,
+  "isStaple": false
+ },
+ {
+  "id": "rote_zwiebel",
+  "name": "Rote Zwiebeln",
+  "category": "produce",
+  "unit": "piece",
+  "packageSize": 3,
+  "kcal": 40,
+  "shelfLifeDays": 30,
+  "isStaple": false
+ },
+ {
+  "id": "knoblauch",
+  "name": "Knoblauch (Zehen)",
+  "category": "produce",
+  "unit": "piece",
+  "packageSize": 10,
+  "kcal": 4,
+  "shelfLifeDays": 60,
+  "isStaple": false
+ },
+ {
+  "id": "karotte",
+  "name": "Karotten",
+  "category": "produce",
+  "unit": "g",
+  "packageSize": 1000,
+  "kcal": 36,
+  "shelfLifeDays": 21,
+  "isStaple": false
+ },
+ {
+  "id": "brokkoli",
+  "name": "Brokkoli",
+  "category": "produce",
+  "unit": "g",
+  "packageSize": 500,
+  "kcal": 34,
+  "shelfLifeDays": 5,
+  "isStaple": false
+ },
+ {
+  "id": "blumenkohl",
+  "name": "Blumenkohl",
+  "category": "produce",
+  "unit": "g",
+  "packageSize": 800,
+  "kcal": 25,
+  "shelfLifeDays": 7,
+  "isStaple": false
+ },
+ {
+  "id": "spinat",
+  "name": "Babyspinat",
+  "category": "produce",
+  "unit": "g",
+  "packageSize": 250,
+  "kcal": 23,
+  "shelfLifeDays": 4,
+  "isStaple": false
+ },
+ {
+  "id": "salatmix",
+  "name": "Salatmischung",
+  "category": "produce",
+  "unit": "g",
+  "packageSize": 150,
+  "kcal": 20,
+  "shelfLifeDays": 4,
+  "isStaple": false
+ },
+ {
+  "id": "champignons",
+  "name": "Champignons",
+  "category": "produce",
+  "unit": "g",
+  "packageSize": 250,
+  "kcal": 22,
+  "shelfLifeDays": 5,
+  "isStaple": false
+ },
+ {
+  "id": "suesskartoffel",
+  "name": "Süßkartoffeln",
+  "category": "produce",
+  "unit": "g",
+  "packageSize": 500,
+  "kcal": 86,
+  "shelfLifeDays": 21,
+  "isStaple": false
+ },
+ {
+  "id": "kartoffel",
+  "name": "Kartoffeln (festkochend)",
+  "category": "produce",
+  "unit": "g",
+  "packageSize": 1500,
+  "kcal": 77,
+  "shelfLifeDays": 30,
+  "isStaple": false
+ },
+ {
+  "id": "avocado",
+  "name": "Avocado",
+  "category": "produce",
+  "unit": "piece",
+  "packageSize": 1,
+  "kcal": 240,
+  "shelfLifeDays": 5,
+  "isStaple": false
+ },
+ {
+  "id": "zitrone",
+  "name": "Zitrone",
+  "category": "produce",
+  "unit": "piece",
+  "packageSize": 1,
+  "kcal": 20,
+  "shelfLifeDays": 21,
+  "isStaple": false
+ },
+ {
+  "id": "banane",
+  "name": "Banane",
+  "category": "produce",
+  "unit": "piece",
+  "packageSize": 1,
+  "kcal": 105,
+  "shelfLifeDays": 6,
+  "isStaple": false
+ },
+ {
+  "id": "apfel",
+  "name": "Apfel",
+  "category": "produce",
+  "unit": "piece",
+  "packageSize": 1,
+  "kcal": 80,
+  "shelfLifeDays": 21,
+  "isStaple": false
+ },
+ {
+  "id": "heidelbeeren",
+  "name": "Heidelbeeren",
+  "category": "produce",
+  "unit": "g",
+  "packageSize": 125,
+  "kcal": 57,
+  "shelfLifeDays": 5,
+  "isStaple": false
+ },
+ {
+  "id": "fruehlingszwiebel",
+  "name": "Frühlingszwiebeln",
+  "category": "produce",
+  "unit": "g",
+  "packageSize": 120,
+  "kcal": 32,
+  "shelfLifeDays": 7,
+  "isStaple": false
+ },
+ {
+  "id": "petersilie",
+  "name": "Petersilie (Bund)",
+  "category": "produce",
+  "unit": "g",
+  "packageSize": 30,
+  "kcal": 36,
+  "shelfLifeDays": 5,
+  "isStaple": false
+ },
+ {
+  "id": "ingwer",
+  "name": "Ingwer",
+  "category": "produce",
+  "unit": "g",
+  "packageSize": 100,
+  "kcal": 80,
+  "shelfLifeDays": 21,
+  "isStaple": false
+ },
+ {
+  "id": "ei",
+  "name": "Eier",
+  "category": "dairy",
+  "unit": "piece",
+  "packageSize": 10,
+  "kcal": 85,
+  "shelfLifeDays": 21,
+  "isStaple": false
+ },
+ {
+  "id": "skyr",
+  "name": "Skyr natur",
+  "category": "dairy",
+  "unit": "g",
+  "packageSize": 450,
+  "kcal": 63,
+  "shelfLifeDays": 14,
+  "isStaple": false
+ },
+ {
+  "id": "joghurt",
+  "name": "Joghurt 1,5 %",
+  "category": "dairy",
+  "unit": "g",
+  "packageSize": 500,
+  "kcal": 47,
+  "shelfLifeDays": 14,
+  "isStaple": false
+ },
+ {
+  "id": "magerquark",
+  "name": "Magerquark",
+  "category": "dairy",
+  "unit": "g",
+  "packageSize": 500,
+  "kcal": 67,
+  "shelfLifeDays": 10,
+  "isStaple": false
+ },
+ {
+  "id": "milch",
+  "name": "Milch 1,5 %",
+  "category": "dairy",
+  "unit": "ml",
+  "packageSize": 1000,
+  "kcal": 47,
+  "shelfLifeDays": 7,
+  "isStaple": false
+ },
+ {
+  "id": "feta",
+  "name": "Feta light",
+  "category": "dairy",
+  "unit": "g",
+  "packageSize": 200,
+  "kcal": 180,
+  "shelfLifeDays": 21,
+  "isStaple": false
+ },
+ {
+  "id": "mozzarella",
+  "name": "Mozzarella light",
+  "category": "dairy",
+  "unit": "g",
+  "packageSize": 125,
+  "kcal": 165,
+  "shelfLifeDays": 10,
+  "isStaple": false
+ },
+ {
+  "id": "parmesan",
+  "name": "Parmesan",
+  "category": "dairy",
+  "unit": "g",
+  "packageSize": 100,
+  "kcal": 390,
+  "shelfLifeDays": 60,
+  "isStaple": false
+ },
+ {
+  "id": "huettenkaese",
+  "name": "Hüttenkäse",
+  "category": "dairy",
+  "unit": "g",
+  "packageSize": 200,
+  "kcal": 100,
+  "shelfLifeDays": 10,
+  "isStaple": false
+ },
+ {
+  "id": "frischkaese",
+  "name": "Frischkäse light",
+  "category": "dairy",
+  "unit": "g",
+  "packageSize": 175,
+  "kcal": 160,
+  "shelfLifeDays": 14,
+  "isStaple": false
+ },
+ {
+  "id": "haehnchenbrust",
+  "name": "Hähnchenbrust",
+  "category": "meatFish",
+  "unit": "g",
+  "packageSize": 400,
+  "kcal": 110,
+  "shelfLifeDays": 3,
+  "isStaple": false
+ },
+ {
+  "id": "putenbrust",
+  "name": "Putenbrust",
+  "category": "meatFish",
+  "unit": "g",
+  "packageSize": 400,
+  "kcal": 105,
+  "shelfLifeDays": 3,
+  "isStaple": false
+ },
+ {
+  "id": "rinderhack",
+  "name": "Rinderhack (mager)",
+  "category": "meatFish",
+  "unit": "g",
+  "packageSize": 400,
+  "kcal": 140,
+  "shelfLifeDays": 2,
+  "isStaple": false
+ },
+ {
+  "id": "putenaufschnitt",
+  "name": "Putenbrust-Aufschnitt",
+  "category": "meatFish",
+  "unit": "g",
+  "packageSize": 100,
+  "kcal": 105,
+  "shelfLifeDays": 7,
+  "isStaple": false
+ },
+ {
+  "id": "tofu",
+  "name": "Tofu natur",
+  "category": "meatFish",
+  "unit": "g",
+  "packageSize": 400,
+  "kcal": 120,
+  "shelfLifeDays": 14,
+  "isStaple": false
+ },
+ {
+  "id": "vollkornbrot",
+  "name": "Vollkornbrot",
+  "category": "bakery",
+  "unit": "g",
+  "packageSize": 500,
+  "kcal": 210,
+  "shelfLifeDays": 7,
+  "isStaple": false
+ },
+ {
+  "id": "vollkornwrap",
+  "name": "Vollkorn-Wraps",
+  "category": "bakery",
+  "unit": "piece",
+  "packageSize": 6,
+  "kcal": 170,
+  "shelfLifeDays": 14,
+  "isStaple": false
+ },
+ {
+  "id": "haferflocken",
+  "name": "Haferflocken",
+  "category": "grains",
+  "unit": "g",
+  "packageSize": 500,
+  "kcal": 370,
+  "shelfLifeDays": 365,
+  "isStaple": false
+ },
+ {
+  "id": "vollkornnudeln",
+  "name": "Vollkornnudeln",
+  "category": "grains",
+  "unit": "g",
+  "packageSize": 500,
+  "kcal": 350,
+  "shelfLifeDays": 730,
+  "isStaple": false
+ },
+ {
+  "id": "naturreis",
+  "name": "Naturreis",
+  "category": "grains",
+  "unit": "g",
+  "packageSize": 500,
+  "kcal": 350,
+  "shelfLifeDays": 730,
+  "isStaple": false
+ },
+ {
+  "id": "quinoa",
+  "name": "Quinoa",
+  "category": "grains",
+  "unit": "g",
+  "packageSize": 500,
+  "kcal": 360,
+  "shelfLifeDays": 730,
+  "isStaple": false
+ },
+ {
+  "id": "bulgur",
+  "name": "Bulgur",
+  "category": "grains",
+  "unit": "g",
+  "packageSize": 500,
+  "kcal": 345,
+  "shelfLifeDays": 730,
+  "isStaple": false
+ },
+ {
+  "id": "couscous",
+  "name": "Vollkorn-Couscous",
+  "category": "grains",
+  "unit": "g",
+  "packageSize": 500,
+  "kcal": 350,
+  "shelfLifeDays": 730,
+  "isStaple": false
+ },
+ {
+  "id": "reiswaffeln",
+  "name": "Reiswaffeln",
+  "category": "grains",
+  "unit": "piece",
+  "packageSize": 20,
+  "kcal": 28,
+  "shelfLifeDays": 180,
+  "isStaple": false
+ },
+ {
+  "id": "kichererbsen",
+  "name": "Kichererbsen (Dose, abgetropft)",
+  "category": "canned",
+  "unit": "g",
+  "packageSize": 240,
+  "kcal": 120,
+  "shelfLifeDays": 730,
+  "isStaple": false
+ },
+ {
+  "id": "kidneybohnen",
+  "name": "Kidneybohnen (Dose, abgetropft)",
+  "category": "canned",
+  "unit": "g",
+  "packageSize": 250,
+  "kcal": 110,
+  "shelfLifeDays": 730,
+  "isStaple": false
+ },
+ {
+  "id": "rote_linsen",
+  "name": "Rote Linsen",
+  "category": "canned",
+  "unit": "g",
+  "packageSize": 500,
+  "kcal": 340,
+  "shelfLifeDays": 365,
+  "isStaple": false
+ },
+ {
+  "id": "gehackte_tomaten",
+  "name": "Gehackte Tomaten (Dose)",
+  "category": "canned",
+  "unit": "g",
+  "packageSize": 400,
+  "kcal": 22,
+  "shelfLifeDays": 730,
+  "isStaple": false
+ },
+ {
+  "id": "passierte_tomaten",
+  "name": "Passierte Tomaten",
+  "category": "canned",
+  "unit": "g",
+  "packageSize": 500,
+  "kcal": 30,
+  "shelfLifeDays": 730,
+  "isStaple": false
+ },
+ {
+  "id": "kokosmilch",
+  "name": "Kokosmilch light",
+  "category": "canned",
+  "unit": "ml",
+  "packageSize": 400,
+  "kcal": 70,
+  "shelfLifeDays": 730,
+  "isStaple": false
+ },
+ {
+  "id": "mais",
+  "name": "Mais (Dose, abgetropft)",
+  "category": "canned",
+  "unit": "g",
+  "packageSize": 285,
+  "kcal": 80,
+  "shelfLifeDays": 730,
+  "isStaple": false
+ },
+ {
+  "id": "thunfisch",
+  "name": "Thunfisch im eigenen Saft",
+  "category": "canned",
+  "unit": "g",
+  "packageSize": 150,
+  "kcal": 110,
+  "shelfLifeDays": 1000,
+  "isStaple": false
+ },
+ {
+  "id": "lachs_tk",
+  "name": "Lachsfilet (TK)",
+  "category": "frozen",
+  "unit": "g",
+  "packageSize": 500,
+  "kcal": 180,
+  "shelfLifeDays": 180,
+  "isStaple": false
+ },
+ {
+  "id": "kabeljau_tk",
+  "name": "Kabeljaufilet (TK)",
+  "category": "frozen",
+  "unit": "g",
+  "packageSize": 400,
+  "kcal": 75,
+  "shelfLifeDays": 180,
+  "isStaple": false
+ },
+ {
+  "id": "garnelen_tk",
+  "name": "Garnelen (TK)",
+  "category": "frozen",
+  "unit": "g",
+  "packageSize": 250,
+  "kcal": 70,
+  "shelfLifeDays": 180,
+  "isStaple": false
+ },
+ {
+  "id": "beeren_tk",
+  "name": "Beerenmischung (TK)",
+  "category": "frozen",
+  "unit": "g",
+  "packageSize": 300,
+  "kcal": 50,
+  "shelfLifeDays": 180,
+  "isStaple": false
+ },
+ {
+  "id": "wokgemuese_tk",
+  "name": "Wokgemüse (TK)",
+  "category": "frozen",
+  "unit": "g",
+  "packageSize": 750,
+  "kcal": 35,
+  "shelfLifeDays": 180,
+  "isStaple": false
+ },
+ {
+  "id": "chiasamen",
+  "name": "Chiasamen",
+  "category": "nutsSeeds",
+  "unit": "g",
+  "packageSize": 200,
+  "kcal": 490,
+  "shelfLifeDays": 365,
+  "isStaple": false
+ },
+ {
+  "id": "mandeln",
+  "name": "Mandeln",
+  "category": "nutsSeeds",
+  "unit": "g",
+  "packageSize": 200,
+  "kcal": 600,
+  "shelfLifeDays": 180,
+  "isStaple": false
+ },
+ {
+  "id": "walnuesse",
+  "name": "Walnüsse",
+  "category": "nutsSeeds",
+  "unit": "g",
+  "packageSize": 200,
+  "kcal": 650,
+  "shelfLifeDays": 180,
+  "isStaple": false
+ },
+ {
+  "id": "erdnussmus",
+  "name": "Erdnussmus",
+  "category": "nutsSeeds",
+  "unit": "g",
+  "packageSize": 350,
+  "kcal": 600,
+  "shelfLifeDays": 180,
+  "isStaple": false
+ },
+ {
+  "id": "olivenoel",
+  "name": "Olivenöl",
+  "category": "oilsSauces",
+  "unit": "ml",
+  "packageSize": 500,
+  "kcal": 820,
+  "shelfLifeDays": 365,
+  "isStaple": true
+ },
+ {
+  "id": "balsamico",
+  "name": "Balsamico-Essig",
+  "category": "oilsSauces",
+  "unit": "ml",
+  "packageSize": 500,
+  "kcal": 90,
+  "shelfLifeDays": 730,
+  "isStaple": true
+ },
+ {
+  "id": "sojasauce",
+  "name": "Sojasauce",
+  "category": "oilsSauces",
+  "unit": "ml",
+  "packageSize": 250,
+  "kcal": 60,
+  "shelfLifeDays": 365,
+  "isStaple": true
+ },
+ {
+  "id": "senf",
+  "name": "Senf",
+  "category": "oilsSauces",
+  "unit": "g",
+  "packageSize": 200,
+  "kcal": 90,
+  "shelfLifeDays": 365,
+  "isStaple": true
+ },
+ {
+  "id": "honig",
+  "name": "Honig",
+  "category": "oilsSauces",
+  "unit": "g",
+  "packageSize": 250,
+  "kcal": 305,
+  "shelfLifeDays": 730,
+  "isStaple": true
+ },
+ {
+  "id": "gemuesebruehe",
+  "name": "Gemüsebrühe (Pulver)",
+  "category": "oilsSauces",
+  "unit": "g",
+  "packageSize": 150,
+  "kcal": 200,
+  "shelfLifeDays": 365,
+  "isStaple": true
+ },
+ {
+  "id": "salz",
+  "name": "Salz",
+  "category": "spices",
+  "unit": "g",
+  "packageSize": 500,
+  "kcal": 0,
+  "shelfLifeDays": 3650,
+  "isStaple": true
+ },
+ {
+  "id": "pfeffer",
+  "name": "Pfeffer schwarz",
+  "category": "spices",
+  "unit": "g",
+  "packageSize": 50,
+  "kcal": 250,
+  "shelfLifeDays": 730,
+  "isStaple": true
+ },
+ {
+  "id": "paprikapulver",
+  "name": "Paprikapulver edelsüß",
+  "category": "spices",
+  "unit": "g",
+  "packageSize": 50,
+  "kcal": 300,
+  "shelfLifeDays": 730,
+  "isStaple": true
+ },
+ {
+  "id": "kreuzkuemmel",
+  "name": "Kreuzkümmel",
+  "category": "spices",
+  "unit": "g",
+  "packageSize": 40,
+  "kcal": 375,
+  "shelfLifeDays": 730,
+  "isStaple": true
+ },
+ {
+  "id": "currypulver",
+  "name": "Currypulver",
+  "category": "spices",
+  "unit": "g",
+  "packageSize": 50,
+  "kcal": 325,
+  "shelfLifeDays": 730,
+  "isStaple": true
+ },
+ {
+  "id": "oregano",
+  "name": "Oregano getrocknet",
+  "category": "spices",
+  "unit": "g",
+  "packageSize": 15,
+  "kcal": 265,
+  "shelfLifeDays": 730,
+  "isStaple": true
+ },
+ {
+  "id": "zimt",
+  "name": "Zimt",
+  "category": "spices",
+  "unit": "g",
+  "packageSize": 40,
+  "kcal": 250,
+  "shelfLifeDays": 730,
+  "isStaple": true
+ },
+ {
+  "id": "chiliflocken",
+  "name": "Chiliflocken",
+  "category": "spices",
+  "unit": "g",
+  "packageSize": 30,
+  "kcal": 300,
+  "shelfLifeDays": 730,
+  "isStaple": true
+ },
+ {
+  "id": "ital_kraeuter",
+  "name": "Italienische Kräuter",
+  "category": "spices",
+  "unit": "g",
+  "packageSize": 20,
+  "kcal": 270,
+  "shelfLifeDays": 730,
+  "isStaple": true
+ },
+ {
+  "id": "kurkuma",
+  "name": "Kurkuma",
+  "category": "spices",
+  "unit": "g",
+  "packageSize": 40,
+  "kcal": 350,
+  "shelfLifeDays": 730,
+  "isStaple": true
+ },
+ {
+  "id": "thymian",
+  "name": "Thymian getrocknet",
+  "category": "spices",
+  "unit": "g",
+  "packageSize": 15,
+  "kcal": 275,
+  "shelfLifeDays": 730,
+  "isStaple": true
+ }
+]
