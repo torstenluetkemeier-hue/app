@@ -1,0 +1,50 @@
+name: CI
+
+on:
+  push:
+  pull_request:
+
+jobs:
+  server:
+    name: Server-Tests
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: server
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - run: npm test
+
+  core:
+    name: Core-Tests (Swift, Linux)
+    runs-on: ubuntu-latest
+    container: swift:6.0
+    defaults:
+      run:
+        working-directory: ios/WochenleichtCore
+    steps:
+      - uses: actions/checkout@v4
+      - run: swift test
+
+  ios:
+    name: iOS-App bauen
+    runs-on: macos-15
+    defaults:
+      run:
+        working-directory: ios
+    steps:
+      - uses: actions/checkout@v4
+      - name: XcodeGen installieren
+        run: brew install xcodegen
+      - name: Xcode-Projekt erzeugen
+        run: xcodegen generate
+      - name: App für Simulator bauen
+        run: |
+          xcodebuild build \
+            -project Wochenleicht.xcodeproj \
+            -scheme Wochenleicht \
+            -destination 'generic/platform=iOS Simulator' \
+            CODE_SIGNING_ALLOWED=NO | xcpretty || exit ${PIPESTATUS[0]}

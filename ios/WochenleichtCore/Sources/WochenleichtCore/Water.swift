@@ -69,9 +69,15 @@ public struct WaterLog: Codable, Hashable, Sendable {
         entries(on: day, calendar: calendar).reduce(0) { $0 + $1.milliliters }
     }
 
-    public func dailyTotals(endingOn day: DayKey, days: Int, calendar: Calendar = .current) -> [(day: DayKey, milliliters: Int)] {
+    public struct DailyTotal: Hashable, Identifiable, Sendable {
+        public let day: DayKey
+        public let milliliters: Int
+        public var id: DayKey { day }
+    }
+
+    public func dailyTotals(endingOn day: DayKey, days: Int, calendar: Calendar = .current) -> [DailyTotal] {
         DayKey.range(from: day.adding(days: -(days - 1), calendar: calendar), days: days, calendar: calendar)
-            .map { ($0, total(on: $0, calendar: calendar)) }
+            .map { DailyTotal(day: $0, milliliters: total(on: $0, calendar: calendar)) }
     }
 
     /// Anzahl aufeinanderfolgender Tage mit erreichtem Ziel (heute zählt mit, wenn bereits erreicht).

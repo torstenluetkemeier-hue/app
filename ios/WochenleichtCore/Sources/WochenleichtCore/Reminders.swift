@@ -115,9 +115,11 @@ public struct ReminderPlanner: Sendable {
         public var openShoppingItems: Int
         public var lastWeighIn: DayKey?
         public var daysToSchedule: Int
+        /// Obergrenze der zu planenden Benachrichtigungen (iOS: max. 64 inkl. Standort-Erinnerungen).
+        public var maxCount: Int
 
         public init(now: Date, settings: ReminderSettings, waterGoalMl: Int, waterLog: WaterLog, dayPlans: [DayPlan],
-                    dailyLimit: Int, nextUnshoppedDay: DayKey?, openShoppingItems: Int, lastWeighIn: DayKey?, daysToSchedule: Int = 3) {
+                    dailyLimit: Int, nextUnshoppedDay: DayKey?, openShoppingItems: Int, lastWeighIn: DayKey?, daysToSchedule: Int = 3, maxCount: Int = ReminderPlanner.maxPendingNotifications) {
             self.now = now
             self.settings = settings
             self.waterGoalMl = waterGoalMl
@@ -128,6 +130,7 @@ public struct ReminderPlanner: Sendable {
             self.openShoppingItems = openShoppingItems
             self.lastWeighIn = lastWeighIn
             self.daysToSchedule = daysToSchedule
+            self.maxCount = maxCount
         }
     }
 
@@ -152,7 +155,7 @@ public struct ReminderPlanner: Sendable {
         // Der "Komm zurück"-Hinweis muss erhalten bleiben – er greift, wenn die App lange nicht geöffnet wurde.
         let comeBack = upcoming.filter { $0.kind == .comeBack }
         let others = upcoming.filter { $0.kind != .comeBack }
-        return Array(others.prefix(Self.maxPendingNotifications - comeBack.count)) + comeBack
+        return Array(others.prefix(max(input.maxCount - comeBack.count, 0))) + comeBack
     }
 
     private func id(_ kind: PlannedReminder.Kind, _ day: DayKey, _ suffix: String = "") -> String {
