@@ -54,7 +54,6 @@ Die GitHub-Actions-CI (`.github/workflows/ci.yml`) führt die Tests aus und baut
 
 - **Passwort vergessen:** Ohne Server gibt es keine Wiederherstellung per E-Mail. „Passwort vergessen?“ im Login löscht nach einer Warnung das lokale Konto samt Daten, danach kann man sich neu registrieren.
 - **Kein Abgleich iPhone ↔ iPad und kein Backup außerhalb des Geräts** (außer über das normale iPhone-Backup). Ein späterer Abgleich über iCloud ist möglich; die Zusammenführungslogik (`AppData.merged`) ist bereits vorhanden, braucht aber ein kostenpflichtiges Apple-Developer-Konto.
-- **App-Icon** fehlt noch (1024 × 1024 PNG in `ios/App/Assets.xcassets/AppIcon.appiconset/`).
 - **Erinnerungen** sind lokale Benachrichtigungen (iOS erlaubt höchstens 64 geplante). Die App plant jeweils 3 Tage im Voraus und erneuert die Planung bei jedem Öffnen und per Hintergrundaktualisierung. Wird die App länger nicht geöffnet, kommt der „Komm zurück“-Hinweis.
 - **Supermarkt-Sortiment:** Ob ein Markt einen Artikel führt, ist nicht bekannt; die Zuordnung legst du selbst fest.
 - **Rezeptdatenbank:** In `ios/WochenleichtCore/Sources/WochenleichtCore/Resources/` erweiterbar. Die kcal-Werte sind Richtwerte.
