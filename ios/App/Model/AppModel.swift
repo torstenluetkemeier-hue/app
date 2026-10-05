@@ -6,24 +6,16 @@ import WochenleichtCore
 @MainActor
 @Observable
 final class AppModel {
-    enum SyncState: Equatable {
-        case idle, syncing, failed(String)
-    }
-
     let catalog: RecipeCatalog
     let user: AuthUser
     private(set) var data: AppData
-    private(set) var syncState: SyncState = .idle
     private(set) var today: DayKey = DayKey(Date())
 
     @ObservationIgnored private let store: LocalStore
-    @ObservationIgnored private let auth: AuthService
-    @ObservationIgnored private var syncTask: Task<Void, Never>?
     @ObservationIgnored private var reminderTask: Task<Void, Never>?
 
-    init(user: AuthUser, auth: AuthService, catalog: RecipeCatalog) {
+    init(user: AuthUser, catalog: RecipeCatalog) {
         self.user = user
-        self.auth = auth
         self.catalog = catalog
         self.store = LocalStore(userId: user.id)
         self.data = store.load() ?? AppData()
@@ -47,7 +39,7 @@ final class AppModel {
 
     // MARK: - Änderungen
 
-    /// Jede Änderung läuft hierüber: speichern, Einkaufsliste aktualisieren, Erinnerungen neu planen, synchronisieren.
+    /// Jede Änderung läuft hierüber: speichern, Einkaufsliste aktualisieren, Erinnerungen neu planen.
     func mutate(_ change: (inout AppData) -> Void) {
         var copy = data
         change(&copy)
@@ -57,7 +49,6 @@ final class AppModel {
         data = copy
         store.save(data)
         scheduleReminders()
-        scheduleSync()
     }
 
     /// Bei App-Start, Rückkehr in den Vordergrund und Hintergrundaktualisierung.
@@ -214,38 +205,6 @@ final class AppModel {
             openShoppingItems: snapshot.shoppingList?.openItemCount ?? 0,
             proximityAlerts: snapshot.reminders.supermarketProximityAlerts && snapshot.reminders.isEnabled
         )
-    }
-
-    // MARK: Synchronisation
-
-    private func scheduleSync() {
-        syncTask?.cancel()
-        syncTask = Task { [weak self] in
-            try? await Task.sleep(for: .seconds(2))
-            guard let self, !Task.isCancelled else { return }
-            await self.syncNow()
-        }
-    }
-
-    func syncNow() async {
-        guard syncState != .syncing else { return }
-        syncState = .syncing
-        let sent = data
-        do {
-            let merged = try await SyncService(auth: auth, store: store).synchronize(local: sent)
-            // Nur übernehmen, was sich während des Syncs lokal nicht geändert hat; sonst erneut zusammenführen.
-            let result = data == sent ? merged : data.merged(with: merged)
-            if result != data {
-                data = result
-                data.refreshShoppingList(today: today, catalog: catalog)
-                store.save(data)
-                scheduleReminders()
-            }
-            syncState = .idle
-            if data != merged { scheduleSync() }
-        } catch {
-            syncState = .failed(error.localizedDescription)
-        }
     }
 
     func deleteLocalData() {

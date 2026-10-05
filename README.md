@@ -1,14 +1,8 @@
 # Wochenleicht – nachhaltig abnehmen (iPhone & iPad)
 
-Wochenleicht plant deine Mahlzeiten immer **eine ganze Woche im Voraus**, hält dabei deine **Kalorienobergrenze** ein, schreibt **Einkaufslisten pro Supermarkt in deiner Nähe**, merkt sich deinen **Vorrat inklusive Restmengen** nach jedem Einkauf, protokolliert dein **Wasser (mind. 3 Liter/Tag)** und **erinnert dich hartnäckig** daran, dranzubleiben. Ohne Registrierung per E-Mail und Passwort geht es nicht los. Die Zugangsdaten liegen auf deinem eigenen Server.
+Wochenleicht plant deine Mahlzeiten immer **eine ganze Woche im Voraus**, hält dabei deine **Kalorienobergrenze** ein, schreibt **Einkaufslisten pro Supermarkt in deiner Nähe**, merkt sich deinen **Vorrat inklusive Restmengen** nach jedem Einkauf, protokolliert dein **Wasser (mind. 3 Liter/Tag)** und **erinnert dich hartnäckig** daran, dranzubleiben. Ohne Registrierung per E-Mail und Passwort geht es nicht los.
 
-```
-┌──────────────────────────┐        HTTPS/JSON         ┌──────────────────────────┐
-│  iOS-App (SwiftUI)       │  ───────────────────────▶ │  server/ (Node.js)       │
-│  ios/App                 │   Registrieren, Login,    │  Auth (scrypt + JWT)     │
-│  ios/WochenleichtCore    │   Token, Datensync        │  SQLite, Docker + Caddy  │
-└──────────────────────────┘                           └──────────────────────────┘
-```
+**Alles läuft auf dem iPhone bzw. iPad:** Konten, Passwortprüfung und sämtliche Daten liegen ausschließlich auf dem Gerät. Es gibt keinen externen Server, kein Hosting und keine Internetpflicht. Nur die Supermarktsuche nutzt Apple Karten.
 
 ## Funktionen
 
@@ -21,51 +15,22 @@ Wochenleicht plant deine Mahlzeiten immer **eine ganze Woche im Voraus**, hält 
 | Vorrat merken | „Einkauf abschließen“ bucht die gekauften Packungen in den Vorrat. Jede gegessene Mahlzeit bucht die Zutaten wieder aus. Die Vorratsansicht zeigt den **Soll-Bestand** und **was nach den geplanten Gerichten übrig bleibt**, dazu Ablaufwarnungen für frische Ware und eine Inventurkorrektur. Gewürze und Öle kommen nur auf die Liste, wenn sie fehlen. |
 | Wasser ≥ 3 l | Schnelleingabe (+250/+500/+750 ml oder eigene Menge), Fortschrittsring, „Plan bis jetzt“, Serie und 14-Tage-Diagramm. Das Ziel lässt sich nicht unter 3 l stellen. Direkt aus der Benachrichtigung heraus kannst du „+250 ml“ eintragen. |
 | Penetrante Erinnerungen | Drei Stufen (Normal / Hartnäckig / **Penetrant**, voreingestellt): Wasser im Intervall, bei Rückstand doppelt so oft. Dazu jede Mahlzeit (mit „Gegessen ✓“-Aktion), eine Kochvorwarnung, Abend-Check, Wiegetag, Einkaufserinnerung, ein Hinweis, sobald du an einem deiner Supermärkte bist, und ein „Du bist vom Plan abgekommen“, wenn du die App tagelang nicht öffnest. Bei Rückstand erscheint außerdem ein roter Banner in der App. |
-| Registrierung per E-Mail + Passwort | Pflicht beim ersten Start. Passwortregel: mind. 8 Zeichen mit Buchstabe und Ziffer. Refresh-Token im iOS-Schlüsselbund. Passwort ändern, abmelden und **Konto löschen** (App-Store-Pflicht) gehen in der App. |
-| iPhone + iPad | Universelle App. Auf dem iPad erscheint der Wochenplan als Kartenraster. Daten werden über den Server zwischen den Geräten **synchronisiert**: Wasser-Einträge beider Geräte werden zusammengeführt, sonst gewinnt der neuere Stand. |
+| Registrierung per E-Mail + Passwort | Pflicht beim ersten Start, **lokal auf dem Gerät**. Passwörter werden mit PBKDF2-SHA256 (210.000 Runden, zufälliges Salt) gehasht und nie im Klartext gespeichert. Nach 5 Fehlversuchen wird der Login 60 Sekunden gesperrt. Mehrere Konten pro Gerät sind möglich, jedes mit eigenen Daten. Passwort ändern, abmelden und **Konto löschen** (App-Store-Pflicht) gehen in der App. |
+| iPhone + iPad | Universelle App. Auf dem iPad erscheint der Wochenplan als Kartenraster. Jedes Gerät hat seine eigenen Konten und Daten; einen Abgleich zwischen den Geräten gibt es nicht. |
 
 ## Projektstruktur
 
 ```
-server/                  Auth- & Sync-Server (Node.js ≥ 22.13, keine npm-Abhängigkeiten)
-  src/app.js             Routen: /v1/auth/register|login|refresh|logout, /v1/me, /v1/me/password, /v1/data
-  test/                  API-Tests (node:test)
-  Dockerfile, docker-compose.yml, Caddyfile   Produktion mit automatischem HTTPS
 ios/
   project.yml            XcodeGen-Projektdefinition
   App/                   SwiftUI-App (Views, Services, AppModel)
+    Services/AuthService.swift, PBKDF2Hasher.swift   Lokale Anmeldung
   WochenleichtCore/      Plattformunabhängige Logik als Swift Package + Unit-Tests
+    Accounts.swift       Kontoverwaltung (Registrierung, Login, Sperre, Passwortwechsel)
     Resources/recipes.json, ingredients.json   Rezept- und Zutatendatenbank (erweiterbar)
 ```
 
-## 1. Server starten
-
-### Lokal (Entwicklung)
-```bash
-cd server
-npm test          # API-Tests
-npm run dev       # http://localhost:8080
-```
-Ohne `JWT_SECRET` wird ein zufälliges Entwicklungs-Secret verwendet.
-
-### Produktion (eigener Server / VPS mit Docker)
-1. Richte eine Domain (z. B. `api.deinedomain.de`) per DNS-A-Record auf den Server.
-2. Konfiguriere die Umgebung:
-   ```bash
-   cd server
-   cp .env.example .env
-   # DOMAIN=api.deinedomain.de
-   # JWT_SECRET=$(openssl rand -hex 32)
-   docker compose up -d
-   ```
-   Caddy besorgt automatisch ein Let's-Encrypt-Zertifikat. iOS verlangt HTTPS.
-3. Prüfe: `curl https://api.deinedomain.de/health` → `{"status":"ok"}`
-
-Die Daten liegen im Docker-Volume `api-data` (SQLite). Für Backups reicht das regelmäßige Sichern dieses Volumes.
-
-**Sicherheit:** Passwörter werden mit scrypt gehasht. Access-Token (JWT, 15 min) und rotierende Refresh-Token (60 Tage, nur gehasht gespeichert) sind getrennt; wird ein Refresh-Token wiederverwendet, sperrt der Server die ganze Sitzung (Diebstahlerkennung). Login und Registrierung sind pro IP ratenbegrenzt. Logins mit unbekannter E-Mail dauern gleich lange wie mit bekannter, sodass sich über die Antwortzeit keine registrierten Adressen erraten lassen.
-
-## 2. iOS-App bauen
+## iOS-App bauen
 
 Voraussetzungen: Mac mit **Xcode 16** oder neuer, iOS 17 oder neuer auf dem Gerät.
 
@@ -77,24 +42,20 @@ open Wochenleicht.xcodeproj
 ```
 
 1. Wähle in Xcode unter *Signing & Capabilities* dein Team (Apple-ID genügt für das eigene Gerät).
-2. **Server-Adresse:** in `ios/project.yml` unter `API_BASE_URL`:
-   - `Debug`: `http://localhost:8080` (Simulator) bzw. `http://<IP-deines-Macs>:8080` (iPhone im WLAN)
-   - `Release`: `https://api.deinedomain.de`
-
-   Danach `xcodegen generate` erneut ausführen.
-3. Starten. Beim ersten Start registrierst du dich, legst dein Profil an (daraus ergibt sich das Kalorienlimit), stellst Wasserziel und Tagesrhythmus ein, hakst deinen Gewürzvorrat ab und erlaubst Benachrichtigungen. Danach steht der Wochenplan.
+2. Starten. Beim ersten Start registrierst du dich, legst dein Profil an (daraus ergibt sich das Kalorienlimit), stellst Wasserziel und Tagesrhythmus ein, hakst deinen Gewürzvorrat ab und erlaubst Benachrichtigungen. Danach steht der Wochenplan.
 
 ### Tests
 ```bash
-cd ios/WochenleichtCore && swift test     # Planer, Einkaufsliste, Vorrat, Wasser, Erinnerungen, Sync-Merge
-cd server && npm test                     # Auth, Token-Rotation, Sync-Konflikte, Kontolöschung
+cd ios/WochenleichtCore && swift test     # Konten, Planer, Einkaufsliste, Vorrat, Wasser, Erinnerungen
 ```
-Die GitHub-Actions-CI (`.github/workflows/ci.yml`) führt beide Testsuiten aus und baut die iOS-App auf einem macOS-Runner.
+Die GitHub-Actions-CI (`.github/workflows/ci.yml`) führt die Tests aus und baut die iOS-App auf einem macOS-Runner.
 
 ## Bekannte Grenzen & nächste Schritte
 
-- **Passwort vergessen:** Dafür braucht es einen E-Mail-Versand (z. B. SMTP oder Postmark). Bis dahin lässt sich das Passwort nur in der App ändern, solange man angemeldet ist.
-- **Erinnerungen** sind lokale Benachrichtigungen (iOS erlaubt höchstens 64 geplante). Die App plant jeweils 3 Tage im Voraus und erneuert die Planung bei jedem Öffnen und per Hintergrundaktualisierung. Wird die App länger nicht geöffnet, kommt der „Komm zurück“-Hinweis. Für Erinnerungen ohne Begrenzung wären Server-Push-Nachrichten (APNs) der nächste Schritt.
+- **Passwort vergessen:** Ohne Server gibt es keine Wiederherstellung per E-Mail. „Passwort vergessen?“ im Login löscht nach einer Warnung das lokale Konto samt Daten, danach kann man sich neu registrieren.
+- **Kein Abgleich iPhone ↔ iPad und kein Backup außerhalb des Geräts** (außer über das normale iPhone-Backup). Ein späterer Abgleich über iCloud ist möglich; die Zusammenführungslogik (`AppData.merged`) ist bereits vorhanden, braucht aber ein kostenpflichtiges Apple-Developer-Konto.
+- **App-Icon** fehlt noch (1024 × 1024 PNG in `ios/App/Assets.xcassets/AppIcon.appiconset/`).
+- **Erinnerungen** sind lokale Benachrichtigungen (iOS erlaubt höchstens 64 geplante). Die App plant jeweils 3 Tage im Voraus und erneuert die Planung bei jedem Öffnen und per Hintergrundaktualisierung. Wird die App länger nicht geöffnet, kommt der „Komm zurück“-Hinweis.
 - **Supermarkt-Sortiment:** Ob ein Markt einen Artikel führt, ist nicht bekannt; die Zuordnung legst du selbst fest.
 - **Rezeptdatenbank:** In `ios/WochenleichtCore/Sources/WochenleichtCore/Resources/` erweiterbar. Die kcal-Werte sind Richtwerte.
 - **HealthKit** (Wasser/Gewicht in Apple Health schreiben) ist noch nicht angebunden.

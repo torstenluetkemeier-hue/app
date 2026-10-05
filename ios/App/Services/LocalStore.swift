@@ -30,14 +30,5 @@ struct LocalStore {
 
     func delete() {
         try? FileManager.default.removeItem(at: dataURL)
-        UserDefaults.standard.removeObject(forKey: syncVersionKey)
-    }
-
-    // Server-Version des zuletzt synchronisierten Stands (für optimistische Nebenläufigkeit)
-    private var syncVersionKey: String { "syncVersion-\(safeId)" }
-
-    var syncVersion: Int {
-        get { UserDefaults.standard.integer(forKey: syncVersionKey) }
-        nonmutating set { UserDefaults.standard.set(newValue, forKey: syncVersionKey) }
     }
 }

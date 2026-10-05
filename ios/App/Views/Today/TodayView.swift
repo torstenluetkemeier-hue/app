@@ -53,7 +53,6 @@ struct TodayView: View {
                 }
             }
         }
-        .refreshable { await model.syncNow() }
     }
 
     /// Penetranter Hinweis, wenn der Nutzer hinterherhinkt.

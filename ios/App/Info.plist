@@ -22,14 +22,6 @@
 	<string>$(CURRENT_PROJECT_VERSION)</string>
 	<key>LSRequiresIPhoneOS</key>
 	<true/>
-	<key>APIBaseURL</key>
-	<string>$(API_BASE_URL)</string>
-	<key>NSAppTransportSecurity</key>
-	<dict>
-		<!-- Erlaubt http://localhost für die Entwicklung; Produktion läuft über HTTPS -->
-		<key>NSAllowsLocalNetworking</key>
-		<true/>
-	</dict>
 	<key>NSLocationWhenInUseUsageDescription</key>
 	<string>Wochenleicht sucht Supermärkte in deiner Nähe, erstellt Einkaufslisten pro Markt und erinnert dich an deine Liste, wenn du in der Nähe eines Marktes bist.</string>
 	<key>BGTaskSchedulerPermittedIdentifiers</key>

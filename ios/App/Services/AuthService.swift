@@ -1,33 +1,14 @@
 import Foundation
 import Observation
+import WochenleichtCore
 
 struct AuthUser: Codable, Hashable {
     let id: String
     let email: String
 }
 
-private struct TokenResponse: Decodable {
-    let accessToken: String
-    let refreshToken: String
-    let expiresIn: Int
-    let user: AuthUser
-}
-
-private struct Credentials: Encodable {
-    let email: String
-    let password: String
-}
-
-private struct RefreshBody: Encodable {
-    let refreshToken: String
-}
-
-private struct PasswordChange: Encodable {
-    let currentPassword: String
-    let newPassword: String
-}
-
-/// Anmeldung per E-Mail und Passwort gegen den eigenen Server.
+/// Registrierung und Anmeldung per E-Mail und Passwort – vollständig auf dem Gerät, ohne externen Server.
+/// Konten liegen in einer dateigeschützten JSON-Datei; Passwörter werden mit PBKDF2-SHA256 gehasht.
 @MainActor
 @Observable
 final class AuthService {
@@ -36,112 +17,117 @@ final class AuthService {
         case signedIn(AuthUser)
     }
 
-    private static let refreshKey = "refreshToken"
-    private static let userKey = "currentUser"
+    private static let sessionKey = "currentAccountId"
 
     private(set) var state: State = .signedOut
-    let api: APIClient
-
-    private var accessToken: String?
-    private var accessTokenExpiry = Date.distantPast
-    private var refreshTask: Task<String, Error>?
+    @ObservationIgnored private var registry: AccountRegistry
+    @ObservationIgnored private let hasher = PBKDF2Hasher()
 
     var currentUser: AuthUser? {
         if case let .signedIn(user) = state { return user }
         return nil
     }
 
-    init(api: APIClient) {
-        self.api = api
-        // Offline-fähig: Ist ein Refresh-Token vorhanden, gilt der Nutzer als angemeldet.
-        if KeychainStore.get(Self.refreshKey) != nil,
-           let data = UserDefaults.standard.data(forKey: Self.userKey),
-           let user = try? JSONDecoder().decode(AuthUser.self, from: data) {
-            state = .signedIn(user)
+    init() {
+        registry = Self.loadRegistry()
+        if let id = UserDefaults.standard.string(forKey: Self.sessionKey), let account = registry.account(id: id) {
+            state = .signedIn(AuthUser(id: account.id, email: account.email))
         }
     }
 
     func register(email: String, password: String) async throws {
-        let response: TokenResponse = try await api.send("POST", "v1/auth/register", body: Credentials(email: email, password: password))
-        apply(response)
+        let account = try await withRegistry { registry, hasher in
+            try registry.register(email: email, password: password, hasher: hasher)
+        }
+        signIn(account)
     }
 
     func login(email: String, password: String) async throws {
-        let response: TokenResponse = try await api.send("POST", "v1/auth/login", body: Credentials(email: email, password: password))
-        apply(response)
-    }
-
-    func logout() async {
-        if let refresh = KeychainStore.get(Self.refreshKey) {
-            let body = try? JSONEncoder().encode(RefreshBody(refreshToken: refresh))
-            _ = try? await api.data("POST", "v1/auth/logout", body: body)
-        }
-        clearSession()
-    }
-
-    func changePassword(current: String, new: String) async throws {
-        let token = try await validAccessToken()
-        let response: TokenResponse = try await api.send("PUT", "v1/me/password",
-                                                         body: PasswordChange(currentPassword: current, newPassword: new), token: token)
-        apply(response)
-    }
-
-    /// Löscht das Konto inkl. aller Serverdaten (App-Store-Pflicht).
-    func deleteAccount() async throws {
-        _ = try await authorizedData("DELETE", "v1/me")
-        clearSession()
-    }
-
-    /// Führt eine authentifizierte Anfrage aus und erneuert das Token bei Bedarf einmalig.
-    func authorizedData(_ method: String, _ path: String, body: Data? = nil) async throws -> Data {
-        let token = try await validAccessToken()
         do {
-            return try await api.data(method, path, body: body, token: token)
-        } catch let error as APIError where error.status == 401 {
-            accessToken = nil
-            let fresh = try await validAccessToken()
-            return try await api.data(method, path, body: body, token: fresh)
-        }
-    }
-
-    func validAccessToken() async throws -> String {
-        if let accessToken, accessTokenExpiry > Date().addingTimeInterval(30) {
-            return accessToken
-        }
-        if let refreshTask {
-            return try await refreshTask.value
-        }
-        let task = Task<String, Error> { [api] in
-            guard let refresh = KeychainStore.get(Self.refreshKey) else {
-                throw APIError.server(status: 401, code: "unauthorized", message: "Bitte erneut anmelden.", body: Data())
+            let account = try await withRegistry { registry, hasher in
+                try registry.login(email: email, password: password, hasher: hasher)
             }
-            let response: TokenResponse = try await api.send("POST", "v1/auth/refresh", body: RefreshBody(refreshToken: refresh))
-            self.apply(response)
-            return response.accessToken
-        }
-        refreshTask = task
-        defer { refreshTask = nil }
-        do {
-            return try await task.value
-        } catch let error as APIError where error.status == 401 {
-            clearSession()
+            signIn(account)
+        } catch {
+            saveRegistry() // Fehlversuche merken
             throw error
         }
     }
 
-    private func apply(_ response: TokenResponse) {
-        accessToken = response.accessToken
-        accessTokenExpiry = Date().addingTimeInterval(TimeInterval(response.expiresIn))
-        KeychainStore.set(response.refreshToken, for: Self.refreshKey)
-        UserDefaults.standard.set(try? JSONEncoder().encode(response.user), forKey: Self.userKey)
-        state = .signedIn(response.user)
+    func logout() {
+        UserDefaults.standard.removeObject(forKey: Self.sessionKey)
+        state = .signedOut
     }
 
-    private func clearSession() {
-        accessToken = nil
-        accessTokenExpiry = .distantPast
-        KeychainStore.set(nil, for: Self.refreshKey)
-        UserDefaults.standard.removeObject(forKey: Self.userKey)
-        state = .signedOut
+    func changePassword(current: String, new: String) async throws {
+        guard let user = currentUser else { throw AccountError.notFound }
+        _ = try await withRegistry { registry, hasher in
+            try registry.changePassword(accountId: user.id, current: current, new: new, hasher: hasher)
+        }
+    }
+
+    /// Löscht das Konto des angemeldeten Benutzers. Die App-Daten löscht der Aufrufer.
+    func deleteAccount() {
+        guard let user = currentUser else { return }
+        registry.delete(accountId: user.id)
+        saveRegistry()
+        logout()
+    }
+
+    /// „Passwort vergessen“: Ohne Server gibt es keine Wiederherstellung per Mail – das Konto samt Daten wird zurückgesetzt.
+    /// Gibt die ID des gelöschten Kontos zurück, damit dessen Daten entfernt werden können.
+    func resetAccount(email: String) -> String? {
+        guard let account = registry.account(email: email) else { return nil }
+        registry.delete(accountId: account.id)
+        saveRegistry()
+        return account.id
+    }
+
+    private func signIn(_ account: LocalAccount) {
+        UserDefaults.standard.set(account.id, forKey: Self.sessionKey)
+        state = .signedIn(AuthUser(id: account.id, email: account.email))
+    }
+
+    /// Führt die rechenintensive Passwortprüfung abseits des Main Threads aus und speichert das Ergebnis.
+    private func withRegistry<T: Sendable>(_ work: @escaping @Sendable (inout AccountRegistry, PBKDF2Hasher) throws -> T) async throws -> T {
+        let snapshot = registry
+        let hasher = hasher
+        let (updated, result) = await Task.detached(priority: .userInitiated) { () -> (AccountRegistry, Result<T, Error>) in
+            var copy = snapshot
+            do {
+                let value = try work(&copy, hasher)
+                return (copy, .success(value))
+            } catch {
+                return (copy, .failure(error))
+            }
+        }.value
+        registry = updated
+        let value = try result.get()
+        saveRegistry()
+        return value
+    }
+
+    // MARK: Persistenz
+
+    private static var registryURL: URL {
+        FileManager.default.urls(for: .applicationSupportDirectory, in: .userDomainMask)[0]
+            .appendingPathComponent("Wochenleicht", isDirectory: true)
+            .appendingPathComponent("accounts.json")
+    }
+
+    private static func loadRegistry() -> AccountRegistry {
+        guard let data = try? Data(contentsOf: registryURL),
+              let registry = try? JSONDecoder().decode(AccountRegistry.self, from: data) else { return AccountRegistry() }
+        return registry
+    }
+
+    private func saveRegistry() {
+        do {
+            let url = Self.registryURL
+            try FileManager.default.createDirectory(at: url.deletingLastPathComponent(), withIntermediateDirectories: true)
+            try JSONEncoder().encode(registry).write(to: url, options: [.atomic, .completeFileProtectionUntilFirstUserAuthentication])
+        } catch {
+            print("[AuthService] Konten konnten nicht gespeichert werden: \(error)")
+        }
     }
 }

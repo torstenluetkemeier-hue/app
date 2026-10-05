@@ -9,6 +9,9 @@ struct AuthView: View {
     }
 
     @Environment(AuthService.self) private var auth
+    @Environment(AppEnvironment.self) private var environment
+    @State private var confirmReset = false
+    @State private var infoMessage: String?
     @State private var mode: Mode = .register
     @State private var email = ""
     @State private var password = ""
@@ -100,8 +103,15 @@ struct AuthView: View {
                             if !passwordRepeat.isEmpty && password != passwordRepeat {
                                 Text("Passwörter stimmen nicht überein.").foregroundStyle(.orange)
                             }
-                            Text("Deine Daten werden auf dem Wochenleicht-Server gespeichert und zwischen iPhone und iPad abgeglichen. Du kannst dein Konto jederzeit in der App löschen.")
+                            Text("Konto und Daten bleiben ausschließlich auf diesem Gerät. Das Passwort wird nur als sicherer Hash gespeichert. Du kannst dein Konto jederzeit in der App löschen.")
                         }
+                    }
+                }
+
+                if let infoMessage {
+                    Section {
+                        Label(infoMessage, systemImage: "info.circle.fill")
+                            .foregroundStyle(.secondary)
                     }
                 }
 
@@ -121,9 +131,31 @@ struct AuthView: View {
                         }
                     }
                     .disabled(!canSubmit)
+                    if mode == .login {
+                        Button("Passwort vergessen?") { confirmReset = true }
+                            .frame(maxWidth: .infinity)
+                            .disabled(!isEmailValid)
+                    }
                 }
             }
-            .onChange(of: mode) { _, _ in errorMessage = nil }
+            .onChange(of: mode) { _, _ in
+                errorMessage = nil
+                infoMessage = nil
+            }
+            .confirmationDialog("Konto zurücksetzen?", isPresented: $confirmReset, titleVisibility: .visible) {
+                Button("Konto und Daten löschen", role: .destructive) {
+                    if environment.resetAccount(email: email) {
+                        password = ""
+                        passwordRepeat = ""
+                        mode = .register
+                        infoMessage = "Konto gelöscht. Du kannst dich mit derselben E-Mail neu registrieren."
+                    } else {
+                        errorMessage = "Für diese E-Mail gibt es auf diesem Gerät kein Konto."
+                    }
+                }
+            } message: {
+                Text("Da alle Daten nur auf diesem Gerät liegen, kann das Passwort nicht per E-Mail wiederhergestellt werden. Du kannst das Konto für \(email) löschen und dich neu registrieren – Wochenplan, Vorrat und Verlauf gehen dabei verloren.")
+            }
         }
     }
 

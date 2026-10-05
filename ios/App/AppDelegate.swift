@@ -30,7 +30,6 @@ final class AppDelegate: NSObject, UIApplicationDelegate, UNUserNotificationCent
         let work = Task { @MainActor in
             AppEnvironment.shared.model?.refreshForNewDay()
             await AppEnvironment.shared.model?.rescheduleNow()
-            await AppEnvironment.shared.model?.syncNow()
             task.setTaskCompleted(success: true)
         }
         task.expirationHandler = { work.cancel() }

@@ -23,19 +23,7 @@ struct MoreView: View {
                 NavigationLink { AccountView() } label: { Label("Konto", systemImage: "person.badge.key") }
             }
             Section {
-                switch model.syncState {
-                case .idle:
-                    Label("Synchronisiert", systemImage: "checkmark.icloud").foregroundStyle(.secondary)
-                case .syncing:
-                    Label("Synchronisiere …", systemImage: "arrow.triangle.2.circlepath.icloud").foregroundStyle(.secondary)
-                case let .failed(message):
-                    Button {
-                        Task { await model.syncNow() }
-                    } label: {
-                        Label("Sync fehlgeschlagen: \(message) – erneut versuchen", systemImage: "exclamationmark.icloud")
-                            .foregroundStyle(.orange)
-                    }
-                }
+                Label("Alle Daten bleiben auf diesem Gerät", systemImage: "lock.iphone").foregroundStyle(.secondary)
             } footer: {
                 Text("Wochenleicht ersetzt keine ärztliche oder ernährungstherapeutische Beratung. Kalorienangaben sind Richtwerte.")
             }
@@ -292,7 +280,7 @@ struct AccountView: View {
                         try await environment.auth.changePassword(current: currentPassword, new: newPassword)
                         currentPassword = ""
                         newPassword = ""
-                        message = "Passwort geändert. Andere Geräte wurden abgemeldet."
+                        message = "Passwort geändert."
                     }
                 }
                 .disabled(currentPassword.isEmpty || newPassword.count < 8 || isWorking)
@@ -302,9 +290,7 @@ struct AccountView: View {
                 if let message { Text(message) }
             }
             Section {
-                Button("Abmelden") {
-                    Task { await environment.logout() }
-                }
+                Button("Abmelden") { environment.logout() }
                 Button("Konto und alle Daten löschen", role: .destructive) { confirmDelete = true }
             }
         }
@@ -312,10 +298,10 @@ struct AccountView: View {
         .disabled(isWorking)
         .confirmationDialog("Konto endgültig löschen?", isPresented: $confirmDelete, titleVisibility: .visible) {
             Button("Konto löschen", role: .destructive) {
-                run { try await environment.deleteAccount() }
+                environment.deleteAccount()
             }
         } message: {
-            Text("Alle Pläne, Vorräte, Wasser- und Gewichtsdaten werden auf dem Server und diesem Gerät gelöscht. Das kann nicht rückgängig gemacht werden.")
+            Text("Alle Pläne, Vorräte, Wasser- und Gewichtsdaten werden von diesem Gerät gelöscht. Das kann nicht rückgängig gemacht werden.")
         }
     }
 

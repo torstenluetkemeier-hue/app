@@ -38,12 +38,6 @@ targets:
         # Eigenes Apple-Developer-Team hier eintragen (oder in Xcode unter "Signing & Capabilities" wählen)
         DEVELOPMENT_TEAM: ""
         CODE_SIGN_STYLE: Automatic
-      configs:
-        Debug:
-          # Lokaler Server (Simulator). Für ein echtes Gerät die IP des Rechners eintragen.
-          API_BASE_URL: "http://localhost:8080"
-        Release:
-          API_BASE_URL: "https://api.example.de"
 
   WochenleichtCoreTests:
     type: bundle.unit-test

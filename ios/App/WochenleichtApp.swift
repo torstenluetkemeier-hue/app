@@ -17,7 +17,6 @@ struct WochenleichtApp: App {
         .onChange(of: scenePhase) { _, phase in
             if phase == .active {
                 environment.model?.refreshForNewDay()
-                Task { await environment.model?.syncNow() }
             } else if phase == .background {
                 AppDelegate.scheduleBackgroundRefresh()
             }
@@ -36,7 +35,7 @@ final class AppEnvironment {
     private(set) var model: AppModel?
 
     private init() {
-        auth = AuthService(api: .fromInfoPlist())
+        auth = AuthService()
         do {
             catalog = try RecipeCatalog.bundled()
         } catch {
@@ -52,19 +51,26 @@ final class AppEnvironment {
             return
         }
         if model?.user != user {
-            model = AppModel(user: user, auth: auth, catalog: catalog)
+            model = AppModel(user: user, catalog: catalog)
             model?.refreshForNewDay()
         }
     }
 
-    func deleteAccount() async throws {
-        try await auth.deleteAccount()
+    func deleteAccount() {
         model?.deleteLocalData()
+        auth.deleteAccount()
         updateModel()
     }
 
-    func logout() async {
-        await auth.logout()
+    func logout() {
+        auth.logout()
         updateModel()
+    }
+
+    /// „Passwort vergessen“: lokales Konto und dessen Daten löschen.
+    func resetAccount(email: String) -> Bool {
+        guard let id = auth.resetAccount(email: email) else { return false }
+        LocalStore(userId: id).delete()
+        return true
     }
 }
