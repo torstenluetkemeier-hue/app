@@ -142,6 +142,8 @@ export function defaultUser() {
     cloud: { nummer: '', mobilnummer: '' },
     appTokenHash: null,
     appSync: null,
+    // Aufgenommene Ansage-Bausteine: Schlüssel → { textHash, text, sekunden, zeit, quelle }
+    aufnahmen: {},
   };
 }
 
@@ -152,7 +154,7 @@ export function migrateConfig(config) {
   config.telefonie = {
     publicUrl: t.publicUrl ?? '',
     sipgate: { ...d.telefonie.sipgate, ...(t.sipgate || {}) },
-    tts: { ...d.telefonie.tts, ...(t.tts || {}) },
+    stimme: { ...d.telefonie.stimme, ...(t.stimme || {}) },
   };
   // Geheimer Teil der Webhook-Adresse (sipgate signiert Webhooks nicht)
   if (!config.telefonie.sipgate.webhookGeheimnis) config.telefonie.sipgate.webhookGeheimnis = crypto.randomBytes(18).toString('base64url');
@@ -160,7 +162,7 @@ export function migrateConfig(config) {
   config.lexikon ??= [];
   for (const u of config.users || []) {
     const du = defaultUser();
-    for (const k of ['lexikon', 'stimme', 'cloud', 'appTokenHash', 'appSync']) u[k] ??= du[k];
+    for (const k of ['lexikon', 'stimme', 'cloud', 'appTokenHash', 'appSync', 'aufnahmen']) u[k] ??= du[k];
     u.texte = { ...du.texte, ...(u.texte || {}), modi: { ...du.texte.modi, ...(u.texte?.modi || {}) } };
   }
   return config;
@@ -185,12 +187,14 @@ export function defaultConfig() {
         // Nach der Ansage: sipgate-Mailbox nimmt die Nachricht auf (Funktion in sipgate buchen)
         mailbox: true,
       },
-      // Sprachausgabe mit Piper auf eigenem Server (Open Source, keine Daten an Dritte)
-      tts: {
-        piperUrl: '',
-        stimme: 'de_DE-thorsten-high',
-        // IPA-Korrekturen als Piper-Rohphoneme [[ … ]] übergeben (sonst Lautschrift)
-        ipaInline: true,
+      // Feste Ansageteile kommen aus Aufnahmen. Der eigene Stimmdienst (stimme/server.py) spricht nur
+      // die dynamischen Sätze – den Namen des Anrufers – in derselben Stimme.
+      stimme: {
+        url: '',
+        // Wie lange auf die KI-Begrüßung gewartet wird, bevor die Aufnahme "Guten Tag!" kommt
+        wartezeitMs: 2500,
+        // Rückkehrzeit ("Das gilt bis einschließlich Freitag, 4. Dezember.") ebenfalls per KI ansagen
+        zeitangaben: false,
       },
     },
     // Firmenweites Aussprache-Wörterbuch (z. B. Kundennamen); persönliche Einträge haben Vorrang

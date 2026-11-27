@@ -1,4 +1,4 @@
-# Cloud-Anrufbeantworter: Server + Piper-Sprachausgabe.
+# Cloud-Anrufbeantworter: Server + KI-Stimmdienst (nur für den Namen des Anrufers).
 # Betrieb in einem deutschen Rechenzentrum; davor ein Reverse-Proxy mit TLS (z. B. Caddy).
 services:
   anrufbeantworter:
@@ -9,16 +9,25 @@ services:
     environment:
       PUBLIC_URL: ${PUBLIC_URL:?PUBLIC_URL setzen, z. B. https://ab.example.de}
       ADMIN_TOKEN: ${ADMIN_TOKEN:?ADMIN_TOKEN setzen}
-      PIPER_URL: http://piper:5000
+      STIMME_URL: http://stimme:5000
     volumes:
       - daten:/data
     depends_on:
-      - piper
+      - stimme
 
-  piper:
-    build: ./piper
+  # Chatterbox (Stimme aus den eigenen Aufnahmen) + Whisper (Gegenprüfung). Braucht eine NVIDIA-GPU,
+  # sonst dauert ein Satz ~30 s – dann kommt beim ersten Anruf die Aufnahme "Guten Tag!".
+  stimme:
+    build: ./stimme
     restart: unless-stopped
-    # kein Port nach außen: nur der Anrufbeantworter spricht mit Piper
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              count: 1
+              capabilities: [gpu]
+    # kein Port nach außen
 
 volumes:
   daten:

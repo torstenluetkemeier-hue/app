@@ -153,8 +153,118 @@ $('#userSelect').addEventListener('change', (e) => guarded(async () => {
   await load(e.target.value);
 }));
 
+// ---------- Aufnahmen ----------
+// Aufnahme im Browser: Mikrofon → 16-bit-WAV (mono), ohne externe Bibliotheken
+async function nimmAuf() {
+  const stream = await navigator.mediaDevices.getUserMedia({ audio: { echoCancellation: true, noiseSuppression: true } });
+  const ctx = new AudioContext();
+  const quelle = ctx.createMediaStreamSource(stream);
+  const proz = ctx.createScriptProcessor(4096, 1, 1);
+  const teile = [];
+  proz.onaudioprocess = (e) => teile.push(new Float32Array(e.inputBuffer.getChannelData(0)));
+  quelle.connect(proz);
+  proz.connect(ctx.destination);
+  return {
+    async stopp() {
+      proz.disconnect();
+      quelle.disconnect();
+      stream.getTracks().forEach((t) => t.stop());
+      await ctx.close();
+      const laenge = teile.reduce((n, t) => n + t.length, 0);
+      const pcm = new DataView(new ArrayBuffer(44 + laenge * 2));
+      const schreib = (o, str) => [...str].forEach((c, i) => pcm.setUint8(o + i, c.charCodeAt(0)));
+      schreib(0, 'RIFF'); pcm.setUint32(4, 36 + laenge * 2, true); schreib(8, 'WAVE'); schreib(12, 'fmt ');
+      pcm.setUint32(16, 16, true); pcm.setUint16(20, 1, true); pcm.setUint16(22, 1, true);
+      pcm.setUint32(24, ctx.sampleRate, true); pcm.setUint32(28, ctx.sampleRate * 2, true);
+      pcm.setUint16(32, 2, true); pcm.setUint16(34, 16, true); schreib(36, 'data'); pcm.setUint32(40, laenge * 2, true);
+      let o = 44;
+      for (const t of teile) for (const x of t) { pcm.setInt16(o, Math.max(-1, Math.min(1, x)) * 32767, true); o += 2; }
+      return new Blob([pcm], { type: 'audio/wav' });
+    },
+  };
+}
+
+async function renderAufnahmen() {
+  const u = state.user;
+  const daten = await api('GET', `/api/users/${u.id}/aufnahmen`);
+  const gebraucht = daten.bausteine.filter((b) => b.gebraucht);
+  const fertig = gebraucht.filter((b) => b.stand === 'vorhanden').length;
+  const zeile = (b) => `
+    <div class="item" data-key="${esc(b.key)}">
+      <div style="flex:1;min-width:240px">
+        <strong>${esc(b.titel)}</strong>
+        ${b.stand === 'vorhanden' ? `<span class="badge standard">aufgenommen · ${esc(b.sekunden)} s</span>` : b.stand === 'veraltet' ? '<span class="badge termin">Text geändert – neu aufnehmen</span>' : '<span class="badge krank">fehlt</span>'}
+        <p style="margin:6px 0 0;font-size:17px">„${esc(b.text)}“</p>
+        ${b.aufgenommenerText ? `<p class="hint">Aufgenommen war: „${esc(b.aufgenommenerText)}“</p>` : ''}
+      </div>
+      <div class="row">
+        ${b.stand !== 'fehlt' ? '<button class="btn small" data-a="play">▶</button>' : ''}
+        <button class="btn small primary" data-a="rec">● Aufnehmen</button>
+        <label class="btn small" style="cursor:pointer">⤒ WAV<input type="file" accept="audio/wav,.wav" data-a="datei" hidden></label>
+        ${b.stand !== 'fehlt' ? '<button class="btn small danger" data-a="del">✕</button>' : ''}
+      </div>
+    </div>`;
+  view.innerHTML = `
+    <h2>Aufnahmen von ${esc(u.profil.vorname)} ${esc(u.profil.nachname)}</h2>
+    <p class="lead">Die Ansage besteht aus diesen Bausteinen. Feste Teile werden <b>einmal aufgenommen</b> – vom Mitarbeiter selbst (iPhone-App oder hier im Browser) oder von einem Profisprecher. Nur der Name des Anrufers kommt von der KI, in derselben Stimme.</p>
+    <div class="card">
+      <div class="row"><span class="badge ${fertig === gebraucht.length ? 'standard' : 'termin'}">${fertig} von ${gebraucht.length} benötigten Bausteinen aufgenommen</span>
+        <span class="meta">KI-Stimme lernt aus ${esc(daten.referenzSekunden)} s Aufnahmen${daten.referenzSekunden < 10 ? ' (empfohlen: mindestens 10 s)' : ''}</span></div>
+      <p class="hint">Tipps: ruhiger Raum, Handy bzw. Mikrofon 20–30 cm vor dem Mund, freundlich und in normalem Tempo sprechen. Stille am Anfang und Ende wird automatisch abgeschnitten, die Lautstärke angeglichen.</p>
+      <div class="row">
+        <input id="stimmText" value="Guten Tag, Frau Dr. Schneider!" style="flex:1;min-width:220px">
+        <button class="btn" id="stimmTest" ${daten.stimmeBereit ? '' : 'disabled title="KI-Stimmdienst nicht eingerichtet"'}>▶ So klingt die KI in dieser Stimme</button>
+      </div>
+    </div>
+    <h3>Benötigt</h3>
+    <div class="list">${gebraucht.map(zeile).join('') || '<p class="hint">–</p>'}</div>
+    <details style="margin-top:18px"><summary><b>Weitere Bausteine</b> (für Status, die gerade nicht genutzt werden)</summary>
+      <div class="list" style="margin-top:10px">${daten.bausteine.filter((b) => !b.gebraucht).map(zeile).join('')}</div>
+    </details>`;
+
+  const hochladen = async (key, blob) => {
+    const res = await fetch(`/api/users/${u.id}/aufnahmen/${encodeURIComponent(key)}`, { method: 'PUT', headers: { 'Content-Type': 'audio/wav', ...authHeader() }, body: blob });
+    const d = await res.json().catch(() => ({}));
+    if (!res.ok) throw new Error(d.fehler || `HTTP ${res.status}`);
+    toast(`Gespeichert (${d.sekunden} s)`);
+    renderAufnahmen();
+  };
+  let laufend = null;
+  $$('[data-key]').forEach((el) => {
+    const key = el.dataset.key;
+    $$('[data-a]', el).forEach((b) => {
+      const a = b.dataset.a;
+      if (a === 'datei') b.onchange = () => guarded(() => hochladen(key, b.files[0]));
+      if (a === 'play') b.onclick = () => guarded(async () => {
+        const res = await fetch(`/api/users/${u.id}/aufnahmen/${encodeURIComponent(key)}.wav`, { headers: authHeader() });
+        new Audio(URL.createObjectURL(await res.blob())).play();
+      });
+      if (a === 'del') b.onclick = () => guarded(async () => {
+        await api('DELETE', `/api/users/${u.id}/aufnahmen/${encodeURIComponent(key)}`);
+        renderAufnahmen();
+      });
+      if (a === 'rec') b.onclick = () => guarded(async () => {
+        if (laufend && laufend.key === key) {
+          const blob = await laufend.rec.stopp();
+          laufend = null;
+          await hochladen(key, blob);
+        } else if (!laufend) {
+          laufend = { key, rec: await nimmAuf() };
+          b.textContent = '■ Stopp & speichern';
+          b.classList.add('danger');
+        }
+      });
+    });
+  });
+  $('#stimmTest').onclick = () => guarded(async () => {
+    const res = await fetch(`/api/users/${u.id}/stimmtest`, { method: 'POST', headers: { 'Content-Type': 'application/json', ...authHeader() }, body: JSON.stringify({ text: $('#stimmText').value }) });
+    if (!res.ok) throw new Error((await res.json().catch(() => ({}))).fehler || `HTTP ${res.status}`);
+    new Audio(URL.createObjectURL(await res.blob())).play();
+  });
+}
+
 function render() {
-  const fn = { status: renderStatus, kalender: renderKalender, ansagen: renderAnsagen, regeln: renderRegeln, profil: renderProfil, integration: renderIntegration, simulator: renderSimulator, nachrichten: renderNachrichten }[state.tab];
+  const fn = { aufnahmen: renderAufnahmen, status: renderStatus, kalender: renderKalender, ansagen: renderAnsagen, regeln: renderRegeln, profil: renderProfil, integration: renderIntegration, simulator: renderSimulator, nachrichten: renderNachrichten }[state.tab];
   guarded(fn);
 }
 
@@ -609,26 +719,23 @@ async function renderIntegration() {
   const lexikon = structuredClone(state.config.lexikon || []);
   view.innerHTML = `
     <h2>Cloud-Telefonie</h2>
-    <p class="lead">Alles von deutschen Anbietern: Telefonie über <b>sipgate</b> (Düsseldorf), Sprachausgabe mit <b>Piper</b> auf dem eigenen Server. Die Diensthandys leiten bei Nichtannahme auf eine sipgate-Nummer um.</p>
+    <p class="lead">Telefonie über <b>sipgate</b> (Düsseldorf). Die Ansage besteht aus <b>echten Aufnahmen</b> (Reiter „Aufnahmen“). Nur der Name des Anrufers kommt vom eigenen KI-Stimmdienst – in derselben Stimme.</p>
     <div class="card" id="telCard">
-      <p class="${t.status.ttsBereit && t.status.publicUrl ? '' : 'error'}">${t.status.ttsBereit && t.status.publicUrl ? '✔ Bereit für Anrufe' : 'Noch nicht vollständig eingerichtet (öffentliche Adresse und Piper-Adresse nötig)'}</p>
+      <p class="${t.status.publicUrl ? '' : 'error'}">${t.status.publicUrl ? '✔ Erreichbar für sipgate' : 'Öffentliche Adresse fehlt'}${t.status.stimmeBereit ? ' · KI-Stimmdienst eingerichtet' : ' · ohne KI-Stimmdienst (Anrufer werden nicht mit Namen begrüßt)'}</p>
       <div class="grid">
         <label class="field">Öffentliche Server-Adresse<input name="publicUrl" value="${esc(t.publicUrl)}" placeholder="https://ab.example.de (oder PUBLIC_URL)"></label>
-        <label class="field">Piper-Sprachausgabe (intern)<input name="piperUrl" value="${esc(t.tts.piperUrl)}" placeholder="http://piper:5000 (oder PIPER_URL)"></label>
-        <label class="field">Stimme für alle<select name="stimme">${Object.entries(state.meta.stimmen).map(([k, v]) => `<option value="${esc(k)}" ${k === t.tts.stimme ? 'selected' : ''}>${esc(v)}</option>`).join('')}</select></label>
+        <label class="field">KI-Stimmdienst (intern)<input name="stimmeUrl" value="${esc(t.stimme.url)}" placeholder="http://stimme:5000 (oder STIMME_URL)"></label>
+        <label class="field">Max. Wartezeit auf die KI-Begrüßung (ms)<input name="wartezeitMs" type="number" min="500" max="8000" step="100" value="${esc(t.stimme.wartezeitMs)}"></label>
       </div>
       <div class="row" style="margin-top:10px">
-        <label class="check"><input type="checkbox" name="ipaInline" ${t.tts.ipaInline ? 'checked' : ''}> IPA-Korrekturen direkt an Piper übergeben</label>
+        <label class="check"><input type="checkbox" name="zeitangaben" ${t.stimme.zeitangaben ? 'checked' : ''}> Rückkehrzeit („bis einschließlich Freitag, 4. Dezember“) ebenfalls per KI ansagen</label>
         <label class="check"><input type="checkbox" name="mailbox" ${t.sipgate.mailbox ? 'checked' : ''}> Nach der Ansage an die sipgate-Mailbox übergeben</label>
       </div>
-      <div class="row" style="margin-top:10px">
-        <input id="ttsText" value="Guten Tag, Frau Doktor Schneider! Sie sind verbunden mit zollsoft." style="flex:1;min-width:220px">
-        <button class="btn" id="ttsTest">▶ Stimme testen</button>
-      </div>
+      <p class="hint">Braucht die KI länger als die Wartezeit, kommt die Aufnahme „Guten Tag!“. Die Begrüßung mit Namen ist dann beim nächsten Anruf derselben Person sofort da.</p>
       <p class="hint" style="margin-top:12px">In sipgate unter <i>Webhooks › URLs</i> für <b>eingehende Anrufe</b> eintragen (enthält einen geheimen Teil, nicht weitergeben):<br>
         <code style="word-break:break-all">${esc(t.status.webhookUrl || basis + '/sg/<geheim>/anruf')}</code></p>
-      <p class="hint">Die sipgate-Mailbox spielt vor der Aufnahme ihre eigene Ansage. Damit danach nur noch „Bitte sprechen Sie jetzt“ kommt, diese Datei dort als Mailbox-Ansage hochladen:
-        <button class="btn small" id="mailboxAnsage">Kurzansage herunterladen</button></p>
+      <p class="hint">Die sipgate-Mailbox spielt vor der Aufnahme ihre eigene Ansage. Damit danach nur noch „Bitte sprechen Sie jetzt“ kommt, die Kurzansage (Reiter „Aufnahmen“) herunterladen und in sipgate als Mailbox-Ansage hochladen:
+        <button class="btn small" id="mailboxAnsage">Kurzansage von ${esc(state.user.profil.vorname)} herunterladen</button></p>
       <div class="row"><button class="btn danger" id="neuesGeheimnis">Webhook-Geheimnis erneuern</button><span class="spacer"></span><button class="btn primary" id="saveTel">Speichern</button></div>
     </div>
     <div class="card">
@@ -665,15 +772,14 @@ async function renderIntegration() {
     const f = (n) => $(`#telCard [name=${n}]`);
     state.config.telefonie = await api('PUT', '/api/telefonie', {
       publicUrl: f('publicUrl').value.trim(),
-      tts: { piperUrl: f('piperUrl').value.trim(), stimme: f('stimme').value, ipaInline: f('ipaInline').checked },
+      stimme: { url: f('stimmeUrl').value.trim(), wartezeitMs: Number(f('wartezeitMs').value), zeitangaben: f('zeitangaben').checked },
       sipgate: { mailbox: f('mailbox').checked },
     });
     toast('Telefonie gespeichert');
     renderIntegration();
   });
-  $('#ttsTest').onclick = () => guarded(() => wavAbspielen('/api/tts/test', { method: 'POST', body: JSON.stringify({ text: $('#ttsText').value }) }));
   $('#mailboxAnsage').onclick = () => guarded(async () => {
-    const blob = await wavAbspielen('/api/mailbox-ansage.wav');
+    const blob = await wavAbspielen(`/api/users/${state.user.id}/mailbox-ansage.wav`);
     const a = document.createElement('a');
     a.href = URL.createObjectURL(blob);
     a.download = 'mailbox-kurzansage.wav';
@@ -762,7 +868,7 @@ function drawSim(r) {
     <div class="card"><h3>2 · Ansage</h3>
       <div class="speech">${esc(ansage)}</div>
       ${r.gesprochen && r.gesprochen !== ansage ? `<details style="margin-bottom:8px"><summary class="hint">So wird es gesprochen (mit Aussprache-Korrekturen)</summary><p class="hint">${esc(r.gesprochen)}</p></details>` : ''}
-      <div class="row"><button class="btn" id="simPlay">▶ Browser-Stimme</button><button class="btn primary" id="simTelefon">▶ Wie am Telefon (Piper)</button><button class="btn" id="simStop">■ Stopp</button></div></div>
+      <div class="row"><button class="btn" id="simPlay">▶ Browser-Stimme</button><button class="btn primary" id="simTelefon">▶ Wie am Telefon (Aufnahmen + KI)</button><button class="btn" id="simStop">■ Stopp</button></div></div>
     ${direkt ? `<div class="card"><h3>3 · Weiterleitung</h3><p>Der Anruf wird direkt zu <b>${esc(direkt.ziel.name)}</b> (${esc(direkt.ziel.telefon)}) durchgestellt.</p></div>` : ''}
     ${auswahl ? `<div class="card"><h3>3 · Tastenwahl</h3><button class="btn" id="simDtmf">Taste ${esc(auswahl.taste)} drücken → ${esc(auswahl.ziel.name)}</button><p id="dtmfOut" class="meta"></p></div>` : ''}
     ${aufnahme ? `<div class="card"><h3>${auswahl ? '4' : '3'} · Nachricht hinterlassen</h3>

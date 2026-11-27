@@ -17,15 +17,16 @@ Die App erzeugt die einheitliche zollsoft-Ansage mit einer angenehmen Stimme und
 
 ## Cloud-Anrufbeantworter (empfohlen)
 
-Läuft komplett bei deutschen Anbietern: sipgate für die Telefonie, Piper-Stimme auf dem zollsoft-Server. Einstellen unter *Einstellungen › Cloud-Anrufbeantworter*:
+Läuft komplett bei deutschen Anbietern. Die Telefonie macht sipgate, die Ansage besteht aus deinen **eigenen Aufnahmen**. Nur der Name eines erkannten Anrufers wird von der KI in deiner Stimme ergänzt. Einstellen unter *Einstellungen › Cloud-Anrufbeantworter*:
 
-1. **Verbinden:** Server-Adresse und persönlichen Zugangsschlüssel eintragen. Den Schlüssel erzeugt die Verwaltung, die App speichert ihn im Schlüsselbund.
-2. **Rufumleitung:** Die App zeigt die Codes für Nichtannahme (mit wählbarer Klingeldauer), besetzt und nicht erreichbar, jeweils mit Kopier-Knopf und Ziel sipgate-Nummer. iOS erlaubt Apps nicht, `*`/`#`-Codes selbst zu wählen, deshalb in der Telefon-App einfügen.
-3. **Aktivieren:** Ab dann überträgt die App jede Änderung automatisch, etwa 1,5 Sekunden nach der letzten Eingabe. Die Mailbox-Erinnerungen entfallen.
-4. **Testen:** *Wie am Telefon anhören* spielt genau die Datei ab, die Anrufer hören (Cloud-Stimme, 8 kHz), auch als Variante „bekannter Kunde“.
-5. **Anrufe:** Eigener Tab mit erkanntem Anrufer, Hinweis „Nachricht in der sipgate-Mailbox“, Zurückrufen und Erledigt-Wischgeste. Die Sprachnachricht selbst hörst du in der sipgate-App oder per E-Mail von sipgate.
+1. **Verbinden:** Server-Adresse und persönlichen Zugangsschlüssel eintragen. Die App speichert den Schlüssel im Schlüsselbund.
+2. **Meine Aufnahmen:** Liste der benötigten Bausteine („Guten Tag!“, Vorstellung, Status-Sätze, Vertretung, Abschluss …). Tippen, Text groß ablesen, aufnehmen (mit Pegelanzeige), anhören, *Verwenden*. Stille wird abgeschnitten und die Lautstärke angeglichen. Ändert sich ein Text, wird die Aufnahme als veraltet markiert. *So klingt die KI in deiner Stimme* spielt einen Testsatz.
+3. **Rufumleitung:** Codes für Nichtannahme (mit Klingeldauer), besetzt und nicht erreichbar, jeweils mit Kopier-Knopf. In der Telefon-App einfügen, denn iOS erlaubt Apps das Wählen von `*`/`#`-Codes nicht.
+4. **Aktivieren:** Ab dann überträgt die App jede Änderung an Status, Kalender, Texten und Wörterbuch automatisch.
+5. **Testen:** *Wie am Telefon anhören* spielt genau die Datei ab, die Anrufer hören, auch als „bekannter Kunde“.
+6. **Anrufe:** Tab mit erkanntem Anrufer, Hinweis „Nachricht in der sipgate-Mailbox“, Zurückrufen, Erledigt.
 
-Die Cloud-Stimme (Piper) ist eine andere als die iPhone-Stimme. Korrekturen in Lautschrift oder IPA werden übertragen und wirken in beiden. Schwierige Namen deshalb einmal mit *Wie am Telefon anhören* gegenhören.
+Für die Mailbox-Variante ohne Server erzeugt die App die Ansage weiterhin mit einer iOS-Stimme. Wer das nicht möchte, nutzt den Cloud-Anrufbeantworter.
 
 ## Aussprache-Prüfung
 

@@ -68,8 +68,8 @@ export function gesprochenerText(text, lexikon = []) {
 }
 
 /**
- * Text für Piper: Lautschrift wird eingesetzt. IPA wird – falls eingeschaltet – als Rohphoneme
- * in Piper-Schreibweise [[ … ]] übergeben, sonst greift die Lautschrift (bzw. das Original).
+ * Text für die KI-Stimme: Lautschrift wird eingesetzt. IPA wird nur übergeben, wenn die Stimme
+ * Rohphoneme in [[ … ]]-Schreibweise versteht (ipaInline), sonst greift die Lautschrift bzw. das Original.
  */
 export function ttsText(text, lexikon = [], { ipaInline = false } = {}) {
   return zerlege(text, lexikon)

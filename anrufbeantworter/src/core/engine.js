@@ -184,28 +184,53 @@ export function answerCall(user, { nummer = null, kontakt = null } = {}, now = n
   };
 
   const abschnitte = [];
-  const add = (teil, tpl) => {
+  // Bausteine für Ansagen aus Aufnahmen: feste Teile mit Schlüssel (werden aufgenommen),
+  // dynamische Teile (Name des Anrufers, Zeitangaben) mit ki: true.
+  const bausteine = [];
+  // Zum Aufnehmen: Rufnummern lesbar ("03641 000 200") statt Ziffer für Ziffer
+  const lesbar = (n) => String(n || '').replace(/^\+49\s*/, '0');
+  const statisch = {
+    ...ctx, begruessung: '', bis: '', naechsteErreichbarkeit: '',
+    firma: { ...ctx.firma, supportAnsage: lesbar(ctx.firma.support) },
+    vertretung: ctx.vertretung ? { ...ctx.vertretung, telefonAnsage: lesbar(ctx.vertretung.telefon) } : null,
+  };
+  const add = (teil, tpl, key) => {
     const text = render(tpl, ctx);
     if (text) abschnitte.push({ teil, text });
+    if (key) {
+      const fest = render(tpl, statisch).replace(/^[\s!,.]+/, '');
+      if (fest) bausteine.push({ key, text: fest });
+    }
   };
+  const grussBaustein = () => bausteine.push(gruss.persoenlich
+    ? { key: null, ki: true, text: `${gruss.text}!`, ersatz: 'gruss' }
+    : { key: 'gruss', text: 'Guten Tag!' });
 
   if (aktion.sperren) {
-    add('abschluss', texte.abschlussOhneAufnahme);
+    add('abschluss', texte.abschlussOhneAufnahme, 'abschlussOhneAufnahme');
     return result([{ typ: 'ansage', text: joinText(abschnitte) }, { typ: 'auflegen' }]);
   }
   if (aktion.direktWeiterleiten && ziel) {
     abschnitte.push({ teil: 'weiterleitung', text: `${gruss.text}! Einen Moment bitte, ich verbinde Sie mit ${ziel.name}.` });
+    grussBaustein();
+    bausteine.push(verbindenBaustein(ziel));
     return result([{ typ: 'ansage', text: joinText(abschnitte) }, { typ: 'weiterleiten', ziel }]);
   }
 
-  add('intro', gruss.du && texte.introDu ? texte.introDu : texte.intro);
-  add('status', texte.modi[status.modus] || texte.modi.standard);
-  if (vertretung) add('vertretung', texte.vertretung);
-  if (aktion.supportHinweis && user.firma?.support) add('support', texte.supportHinweis);
-  if (aktion.zusatzText) add('zusatz', aktion.zusatzText);
-  if (aktion.weiterleitungAnbieten && ziel) add('weiterleitung', texte.weiterleitung);
-  if (aktion.aufnehmen) add('abschluss', kontakt && nummer ? texte.abschlussBekannt : texte.abschluss);
-  else add('abschluss', texte.abschlussOhneAufnahme);
+  const du = gruss.du && texte.introDu;
+  grussBaustein();
+  add('intro', du ? texte.introDu : texte.intro, du ? 'vorstellungDu' : 'vorstellung');
+  add('status', texte.modi[status.modus] || texte.modi.standard, statusSchluessel(status));
+  const zeit = status.bis ? `Das gilt ${status.bis}.` : status.naechsteErreichbarkeit ? `Ich bin ${status.naechsteErreichbarkeit} wieder für Sie da.` : '';
+  if (zeit) bausteine.push({ key: null, ki: true, text: zeit, optional: 'zeitangabe' });
+  if (vertretung) add('vertretung', texte.vertretung, `vertretung.${vertretung.id}`);
+  if (aktion.supportHinweis && user.firma?.support) add('support', texte.supportHinweis, 'support');
+  if (aktion.zusatzText) add('zusatz', aktion.zusatzText, `zusatz.${kurzHash(aktion.zusatzText)}`);
+  if (aktion.weiterleitungAnbieten && ziel) add('weiterleitung', texte.weiterleitung, `weiterleitung.${ziel.id || kurzHash(ziel.telefon)}`);
+  if (aktion.aufnehmen) {
+    const bekannt = kontakt && nummer;
+    add('abschluss', bekannt ? texte.abschlussBekannt : texte.abschluss, bekannt ? 'abschlussBekannt' : 'abschluss');
+  } else add('abschluss', texte.abschlussOhneAufnahme, 'abschlussOhneAufnahme');
 
   const ablauf = [{ typ: 'ansage', text: joinText(abschnitte) }];
   if (aktion.weiterleitungAnbieten && ziel) ablauf.push({ typ: 'auswahl', taste: ctx.weiterleitung.taste, ziel });
@@ -219,7 +244,7 @@ export function answerCall(user, { nummer = null, kontakt = null } = {}, now = n
       status,
       anrufer: { nummer, anonym: !nummer, erkannt: !!kontakt, kontakt, persoenlichBegruesst: gruss.persoenlich },
       regeln: angewandt,
-      ansage: { text: joinText(abschnitte), abschnitte },
+      ansage: { text: joinText(abschnitte), abschnitte, bausteine },
       ablauf,
       rueckruf: {
         aufgabe: opt.rueckrufAufgabe !== false && !aktion.sperren,
@@ -227,6 +252,25 @@ export function answerCall(user, { nummer = null, kontakt = null } = {}, now = n
       },
     };
   }
+}
+
+/** Schlüssel der Status-Aufnahme, z. B. "status.termin.online-praesentation". */
+export function statusSchluessel(status) {
+  const standardGrund = status.modus === 'termin' ? TERMIN_ARTEN.sonstiges.ansage : ABWESEND_ARTEN.sonstiges.ansage;
+  const frei = (status.art === 'sonstiges' || !status.art) && ['termin', 'abwesend'].includes(status.modus);
+  if (frei && status.grund && status.grund !== standardGrund) return `status.${status.modus}.frei.${kurzHash(status.grund)}`;
+  return ['termin', 'abwesend'].includes(status.modus) ? `status.${status.modus}.${status.art || 'sonstiges'}` : `status.${status.modus}`;
+}
+
+/** "Einen Moment bitte, ich verbinde Sie mit …" – wird ebenfalls aufgenommen. */
+export function verbindenBaustein(ziel) {
+  return { key: `verbinden.${ziel.id || kurzHash(ziel.telefon)}`, text: `Einen Moment bitte, ich verbinde Sie mit ${ziel.name}.` };
+}
+
+export function kurzHash(s) {
+  let h = 2166136261;
+  for (const c of String(s)) h = Math.imul(h ^ c.codePointAt(0), 16777619) >>> 0;
+  return h.toString(36);
 }
 
 function joinText(abschnitte) {

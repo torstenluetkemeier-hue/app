@@ -1,6 +1,6 @@
 # Konzept: Intelligenter Anrufbeantworter für zollsoft
 
-Stand: 27.11.2026 · Status: Vorschlag + Prototyp (v0.4)
+Stand: 27.11.2026 · Status: Vorschlag + Prototyp (v0.5)
 
 ## 0. Aktuelle Ausrichtung (v0.2): iPhone-App ohne Telefonanlage
 
@@ -10,12 +10,14 @@ Nach Abstimmung liegt der Schwerpunkt auf einer **reinen iPhone-App**, ohne Anbi
 
 | Ziel | Mit reiner iPhone-App | Mit optionaler Cloud-Ausbaustufe (Rufumleitung) |
 |---|---|---|
-| Einheitliche Ansage, angenehme Stimme, korrekte Aussprache | ✅ | ✅ (Firmen- und persönliches Wörterbuch, Piper-Stimme) |
+| Einheitliche Ansage, angenehme Stimme, korrekte Aussprache | ✅ | ✅ echte Aufnahmen, KI nur für den Anrufernamen |
 | Status, Urlaub, Termine, Vertretung | ✅ Ansage wird erzeugt, Wechsel per Erinnerung und einmaligem Einspielen in die Mailbox | ✅ wechselt automatisch |
 | Anrufer mit Namen begrüßen (Qto/ZSWork) | ❌ die Mailbox spielt für alle dieselbe Ansage | ✅ |
 | Rückruf-Aufgabe, Transkript | ❌ (Mailbox des Netzbetreibers) | ✅ Rückrufliste + Qto-Aufgabe; Aufnahme in der sipgate-Mailbox |
 
-**Stand v0.4 – nur deutsche Anbieter:** Das iPhone leitet per **bedingter Rufumleitung** (`**61*…*11*20#`, `**67*…#`, `**62*…#`) auf eine **sipgate**-Nummer um (sipgate GmbH, Düsseldorf, Push-API „sipgate.io“). Die Ansage spricht **Piper** (Open Source) auf dem eigenen Server in einem deutschen Rechenzentrum. Die Sprachnachricht nimmt die **sipgate-Mailbox** auf. Die App überträgt Status, Kalender, Texte und Aussprache-Wörterbuch automatisch. Einrichtung: [README.md](README.md).
+**Stand v0.5 – nur deutsche Anbieter, echte Stimme:** Das iPhone leitet per **bedingter Rufumleitung** (`**61*…*11*20#`, `**67*…#`, `**62*…#`) auf eine **sipgate**-Nummer um (sipgate GmbH, Düsseldorf, Push-API „sipgate.io“). Die Ansage besteht aus **echten Aufnahmen**, die jeder Mitarbeiter in der iPhone-App einspricht oder ein Profisprecher aufnimmt. Nur der **Name eines erkannten Anrufers** wird von einem eigenen KI-Stimmdienst (Chatterbox, Open Source) **in derselben Stimme** ergänzt. Der Stimmdienst läuft auf einem eigenen GPU-Server in Deutschland; ist er zu langsam, kommt die Aufnahme „Guten Tag!“. Die Sprachnachricht nimmt die **sipgate-Mailbox** auf. Einrichtung: [README.md](README.md).
+
+Verworfen: rein synthetische Ansagen (Piper) klangen zu unnatürlich. Als Alternative zur eigenen KI kommt **stimme.ai** (BrennerMedien GmbH, Augsburg; Profisprecher-Stimme, eigene Server in Augsburg, Preise auf Anfrage, Early Access) infrage.
 
 Geprüfte Alternativen: **Placetel** (Köln) eignet sich nicht, weil die Call-Control-API keine eigenen Audiodateien und keine Tasteneingabe kennt. Die US-Dienste (Twilio, Cloud-Sprachdienste von Amazon/Google/Microsoft) sind bewusst ausgeschlossen. Wer auch Aufnahme und Transkription selbst betreiben will, nimmt einen eigenen Asterisk an einem deutschen SIP-Trunk.
 

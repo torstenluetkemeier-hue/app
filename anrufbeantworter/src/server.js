@@ -1,8 +1,8 @@
 // HTTP-Server: Verwaltungs-API + Weboberfläche, App-API für die iPhone-App,
 // Webhooks für sipgate.io (Cloud-Anrufbeantworter). Ohne externe Abhängigkeiten (Node.js ≥ 22).
 //
-// Alle Dienste aus Deutschland: Telefonie über sipgate (Düsseldorf), Sprachausgabe mit Piper
-// auf dem eigenen Server, Betrieb in einem deutschen Rechenzentrum.
+// Alle Dienste aus Deutschland: Telefonie über sipgate (Düsseldorf). Die Ansage besteht aus echten
+// Aufnahmen; nur der Name des Anrufers kommt vom eigenen KI-Stimmdienst in derselben Stimme.
 //
 // Zugriffsschutz:
 //   /api/app/*        Bearer-Token des Mitarbeiters (in der Weboberfläche erzeugt, in der App eingetragen)
@@ -26,8 +26,10 @@ import { MODI, TERMIN_ARTEN, ABWESEND_ARTEN, REGEL_BEDINGUNGEN, DEFAULT_TEXTE, d
 import { notify } from './notify.js';
 import { uebernehmeAppKonfiguration, SyncFehler } from './appsync.js';
 import * as sipgate from './telephony/sipgate.js';
-import { PiperTts, PIPER_STIMMEN } from './tts/piper.js';
-import { AnsageAudio } from './tts/ansageAudio.js';
+import { Stimmdienst } from './tts/stimmdienst.js';
+import { AnsageMixer } from './tts/ansageAudio.js';
+import { Aufnahmen, MAILBOX_KURZ } from './aufnahmen.js';
+import { verbindenBaustein } from './core/engine.js';
 
 const HERE = path.dirname(fileURLToPath(import.meta.url));
 const PUBLIC = path.join(HERE, '..', 'public');
@@ -69,10 +71,11 @@ export function createApp(store, { fetchImpl, env = process.env, vorwaermenBeiSt
   const webhookGeheimnis = () => env.SIPGATE_WEBHOOK_SECRET || tel().sipgate.webhookGeheimnis;
   const sgBasis = () => `${basisUrl()}/sg/${webhookGeheimnis()}`;
 
-  let tts, audio;
+  const aufnahmen = new Aufnahmen(path.join(store.dir, 'aufnahmen'));
+  let stimme, audio;
   const rebuildTts = () => {
-    tts = new PiperTts({ url: env.PIPER_URL || tel().tts.piperUrl, stimme: tel().tts.stimme, fetchImpl });
-    audio = new AnsageAudio({ verzeichnis: path.join(store.dir, 'audio'), tts, geheim: tel().audioGeheimnis });
+    stimme = new Stimmdienst({ url: env.STIMME_URL || tel().stimme.url, timeoutMs: Number(env.STIMME_TIMEOUT_MS) || 30_000, fetchImpl });
+    audio = new AnsageMixer({ verzeichnis: path.join(store.dir, 'audio'), aufnahmen, stimme, geheim: tel().audioGeheimnis });
   };
   rebuildTts();
   setInterval(() => audio.aufraeumen(), 3600_000).unref();
@@ -105,7 +108,7 @@ export function createApp(store, { fetchImpl, env = process.env, vorwaermenBeiSt
   };
 
   const telefonieStatus = () => ({
-    ttsBereit: tts.bereit,
+    stimmeBereit: stimme.bereit,
     publicUrl: basisUrl(),
     webhookUrl: basisUrl() ? `${sgBasis()}/anruf` : null,
     hangupUrl: basisUrl() ? `${sgBasis()}/ende` : null,
@@ -141,45 +144,74 @@ export function createApp(store, { fetchImpl, env = process.env, vorwaermenBeiSt
     antwort.crm = { adapter: adapter.name, dauerMs: Date.now() - t0, fehler: suche.fehler, ausCache: !!suche.ausCache };
     const lexikon = lexikonFuer(user);
     antwort.ansage.ssml = ansageSsml(antwort.ansage.abschnitte, { lexikon, pauseMs: user.stimme?.pauseMs, tempoProzent: tempoProzent(user.stimme?.tempo) });
-    antwort.ansage.gesprochen = antwort.ansage.abschnitte.map((a) => ttsText(a.text, lexikon, { ipaInline: tel().tts.ipaInline })).join(' ');
+    antwort.ansage.gesprochen = antwort.ansage.abschnitte.map((a) => ttsText(a.text, lexikon)).join(' ');
     return { user, antwort };
   }
 
-  /** Ansage als Telefon-WAV (Cache je Abschnitt). */
-  const audioFuer = (user, abschnitte) => audio.ansage(abschnitte, {
+  /** Ansage als Telefon-WAV: Aufnahmen + KI für den Namen des Anrufers. */
+  const audioFuer = (user, bausteine) => audio.ansage(user, bausteine, {
     lexikon: lexikonFuer(user),
     pauseMs: user.stimme?.pauseMs ?? 450,
-    tempoProzent: tempoProzent(user.stimme?.tempo),
-    ipaInline: tel().tts.ipaInline,
+    zeitangaben: !!tel().stimme.zeitangaben,
+    wartezeitMs: tel().stimme.wartezeitMs ?? 2500,
   });
 
-  /**
-   * Ansagen im Voraus erzeugen, damit Anrufe sofort beantwortet werden: für unbekannte Anrufer
-   * komplett, für erkannte Anrufer alle Sätze außer der persönlichen Begrüßung (Cache je Satz).
-   */
+  /** Standardansage (unbekannter Anrufer) im Voraus zusammensetzen, damit der erste Anruf sofort beantwortet wird. */
   const vorwaermen = (user) => {
-    if (!tts.bereit) return;
-    const beispiele = [
-      null,
-      { typ: 'praxis', anrede: 'Frau', nachname: 'Beispiel', vip: false },
-      { typ: 'praxis', anrede: 'Frau', nachname: 'Beispiel', vip: true, betreuerId: user.id },
-    ];
-    (async () => {
-      for (const kontakt of beispiele) {
-        const antwort = answerCall(user, { nummer: kontakt ? '+490' : null, kontakt });
-        await audioFuer(user, antwort.ansage.abschnitte);
-      }
-    })().catch((e) => console.warn('Vorab-Erzeugung der Ansage fehlgeschlagen:', e.message));
+    if (!stimme.bereit && !Object.keys(user.aufnahmen || {}).length) return;
+    const antwort = answerCall(user, { nummer: null, kontakt: null });
+    audioFuer(user, antwort.ansage.bausteine).catch((e) => console.warn('Vorab-Erzeugung der Ansage fehlgeschlagen:', e.message));
   };
   if (vorwaermenBeiStart) setTimeout(() => store.config.users.forEach(vorwaermen), 100).unref();
 
-  const wavFuerText = async (text) => new Wav(fs.readFileSync((await audio.ansage([{ text }], {})).datei));
+  /** Ein Satz in der KI-Stimme des Mitarbeiters (zum Probehören). */
+  const stimmtest = async (user, text) => {
+    const t = String(text || 'Guten Tag, Frau Dr. Schneider!').slice(0, 300);
+    return new Wav(fs.readFileSync((await audio.ansage(user, [{ key: null, ki: true, text: t }], { lexikon: lexikonFuer(user) })).datei));
+  };
+  /** Mailbox-Kurzansage: Aufnahme, sonst KI-Stimme. */
+  const mailboxAnsage = async (user) => new Wav(fs.readFileSync((await audio.ansage(user, [MAILBOX_KURZ], {})).datei));
+
+  // Aufnahmen: gemeinsame Logik für Verwaltung und App
+  const aufnahmeRoutes = (benutzer) => [
+    ['GET', /^\/aufnahmen$/, (u) => ({
+      bausteine: aufnahmen.liste(u),
+      referenzSekunden: Math.round(aufnahmen.referenz(u)?.sekunden || 0),
+      stimmeBereit: stimme.bereit,
+    })],
+    ['PUT', /^\/aufnahmen\/([\w.-]+)$/, (u, roh, [key]) => {
+      const b = aufnahmen.liste(u).find((x) => x.key === key);
+      if (!b) throw new HttpError(404, 'Unbekannter Baustein');
+      try {
+        const meta = aufnahmen.speichere(u, key, b.text, roh, benutzer);
+        store.saveConfig();
+        vorwaermen(u);
+        return { key, ...meta };
+      } catch (e) {
+        throw new HttpError(400, e.message);
+      }
+    }],
+    ['DELETE', /^\/aufnahmen\/([\w.-]+)$/, (u, _, [key]) => {
+      aufnahmen.loesche(u, key);
+      store.saveConfig();
+      return { ok: true };
+    }],
+    ['GET', /^\/aufnahmen\/([\w.-]+)\.wav$/, (u, _, [key]) => {
+      const p = aufnahmen.originalDatei(u, key);
+      if (!p) throw new HttpError(404, 'Keine Aufnahme');
+      return new Wav(fs.readFileSync(p));
+    }],
+    ['POST', /^\/stimmtest$/, (u, roh) => stimmtest(u, JSON.parse(roh.toString() || '{}').text)],
+    ['GET', /^\/mailbox-ansage\.wav$/, (u) => mailboxAnsage(u)],
+  ];
+  const adminAufnahmen = aufnahmeRoutes('web');
+  const appAufnahmen = aufnahmeRoutes('app');
 
   // ---------------------------------------------------------------- Verwaltung (Admin)
   const adminRoutes = [
     ['GET', /^\/api\/meta$/, () => ({
       modi: MODI, terminArten: TERMIN_ARTEN, abwesendArten: ABWESEND_ARTEN, regelBedingungen: REGEL_BEDINGUNGEN,
-      standardTexte: DEFAULT_TEXTE, stimmen: PIPER_STIMMEN,
+      standardTexte: DEFAULT_TEXTE,
       testAnrufer: MOCK_KONTAKTE.map((k) => ({
         nummer: k.telefonnummern[0],
         label: `${[k.anrede, k.titel, k.vorname, k.nachname].filter(Boolean).join(' ') || k.organisation} – ${k.organisation} (${k.typ}${k.vip ? ', VIP' : ''})`,
@@ -214,18 +246,16 @@ export function createApp(store, { fetchImpl, env = process.env, vorwaermenBeiSt
         if (typeof body.sipgate.mailbox === 'boolean') t.sipgate.mailbox = body.sipgate.mailbox;
         if (body.sipgate.neuesGeheimnis) t.sipgate.webhookGeheimnis = crypto.randomBytes(18).toString('base64url');
       }
-      if (body.tts) {
-        if (typeof body.tts.piperUrl === 'string') t.tts.piperUrl = body.tts.piperUrl.trim();
-        if (typeof body.tts.stimme === 'string') t.tts.stimme = body.tts.stimme.trim();
-        if (typeof body.tts.ipaInline === 'boolean') t.tts.ipaInline = body.tts.ipaInline;
+      if (body.stimme) {
+        if (typeof body.stimme.url === 'string') t.stimme.url = body.stimme.url.trim();
+        if (typeof body.stimme.zeitangaben === 'boolean') t.stimme.zeitangaben = body.stimme.zeitangaben;
+        const w = Number(body.stimme.wartezeitMs);
+        if (Number.isFinite(w)) t.stimme.wartezeitMs = Math.max(500, Math.min(8000, Math.round(w)));
       }
       store.saveConfig();
       rebuildTts();
       return publicConfig().telefonie;
     }],
-    ['POST', /^\/api\/tts\/test$/, async (_, body) => wavFuerText(String(body.text || 'Guten Tag! Dies ist ein Test der Sprachausgabe.').slice(0, 500))],
-    // Kurze Ansage für die sipgate-Mailbox (dort einmal hochladen, damit nach unserer Ansage nur noch der Signalton folgt)
-    ['GET', /^\/api\/mailbox-ansage\.wav$/, async () => wavFuerText('Bitte sprechen Sie jetzt.')],
     ['PUT', /^\/api\/lexikon$/, (_, body) => {
       if (!Array.isArray(body.lexikon)) throw new HttpError(400, 'lexikon fehlt');
       store.config.lexikon = body.lexikon
@@ -302,10 +332,10 @@ export function createApp(store, { fetchImpl, env = process.env, vorwaermenBeiSt
 
     // Vorschau: was hört ein Anrufer mit dieser Nummer zu diesem Zeitpunkt?
     ['POST', /^\/api\/vorschau$/, async (_, body) => (await handleCall(body)).antwort],
-    // Dieselbe Vorschau als Audio in Telefonqualität (Piper-Stimme, 8 kHz)
+    // Dieselbe Vorschau als Audio in Telefonqualität (Aufnahmen + KI-Begrüßung, 8 kHz)
     ['POST', /^\/api\/vorschau\/audio$/, async (_, body) => {
       const { user, antwort } = await handleCall(body);
-      return new Wav(fs.readFileSync((await audioFuer(user, antwort.ansage.abschnitte)).datei));
+      return new Wav(fs.readFileSync((await audioFuer(user, antwort.ansage.bausteine)).datei));
     }],
 
     // Generische Telefonie-Schnittstelle (eigenes Voice-Gateway, z. B. Asterisk an einem deutschen SIP-Trunk)
@@ -362,8 +392,12 @@ export function createApp(store, { fetchImpl, env = process.env, vorwaermenBeiSt
       name: `${u.profil.vorname} ${u.profil.nachname}`.trim(),
       cloudNummer: u.cloud?.nummer || '',
       mobilnummer: u.cloud?.mobilnummer || '',
-      stimme: PIPER_STIMMEN[tel().tts.stimme] || tel().tts.stimme,
-      telefonieBereit: !!(tts.bereit && basisUrl()),
+      stimme: Object.keys(u.aufnahmen || {}).length ? 'Eigene Aufnahmen' : 'Noch keine Aufnahmen',
+      telefonieBereit: !!basisUrl() && (stimme.bereit || Object.keys(u.aufnahmen || {}).length > 0),
+      aufnahmen: (() => {
+        const l = aufnahmen.liste(u).filter((b) => b.gebraucht);
+        return { gebraucht: l.length, vorhanden: l.filter((b) => b.stand === 'vorhanden').length };
+      })(),
       mailbox: tel().sipgate.mailbox !== false,
       letzteSynchronisierung: u.appSync?.zeit || null,
       aktuell: resolveStatus(u),
@@ -386,7 +420,7 @@ export function createApp(store, { fetchImpl, env = process.env, vorwaermenBeiSt
     // So klingt die Ansage am Telefon (Cloud-Stimme, 8 kHz)
     ['GET', /^\/api\/app\/vorschau\.wav$/, async (u, _, q) => {
       const { antwort } = await handleCall({ userId: u.id, from: q.from || null });
-      return new Wav(fs.readFileSync((await audioFuer(u, antwort.ansage.abschnitte)).datei));
+      return new Wav(fs.readFileSync((await audioFuer(u, antwort.ansage.bausteine)).datei));
     }],
     ['GET', /^\/api\/app\/nachrichten$/, (u) => store.nachrichten.filter((n) => n.userId === u.id).slice(0, 200)
       .map(({ aufnahmeUrl, benachrichtigung, ...n }) => n)],
@@ -408,7 +442,7 @@ export function createApp(store, { fetchImpl, env = process.env, vorwaermenBeiSt
       try {
         const { user, antwort } = await handleCall({ to: p.to, umgeleitetVon: p.diversion, from: p.from });
         merkeAnruf(callId, { userId: user.id, antwort });
-        const datei = await audioFuer(user, antwort.ansage.abschnitte);
+        const datei = await audioFuer(user, antwort.ansage.bausteine);
         const q = `callId=${encodeURIComponent(callId)}`;
         return sipgate.ansageXml({
           audioUrl: `${basisUrl()}/audio/${datei.name}`,
@@ -434,7 +468,7 @@ export function createApp(store, { fetchImpl, env = process.env, vorwaermenBeiSt
         call.phase = 'verbinden';
         call.weitergeleitet = auswahl.ziel;
         const user = getUser(call.userId);
-        const datei = await audioFuer(user, [{ text: `Einen Moment bitte, ich verbinde Sie mit ${auswahl.ziel.name}.` }]);
+        const datei = await audioFuer(user, [verbindenBaustein(auswahl.ziel)]);
         return sipgate.ansageXml({ audioUrl: `${basisUrl()}/audio/${datei.name}`, datenUrl: `${sgBasis()}/daten?callId=${encodeURIComponent(q.callId)}`, timeoutMs: 1 });
       }
       if (direkt) {
@@ -532,6 +566,23 @@ export function createApp(store, { fetchImpl, env = process.env, vorwaermenBeiSt
         res.writeHead(200, { 'Content-Type': 'audio/wav', 'Content-Length': fs.statSync(datei).size, 'Cache-Control': 'private, max-age=3600' });
         return fs.createReadStream(datei).pipe(res);
       }
+      const appAuf = url.pathname.match(/^\/api\/app(\/(?:aufnahmen|stimmtest|mailbox-ansage).*)$/);
+      const admAuf = url.pathname.match(/^\/api\/users\/([\w.-]+)(\/(?:aufnahmen|stimmtest|mailbox-ansage).*)$/);
+      if (appAuf || admAuf) {
+        let user;
+        if (appAuf) user = appUser(req);
+        else {
+          pruefeAdmin(req);
+          user = getUser(admAuf[1]);
+        }
+        const rest = appAuf ? appAuf[1] : admAuf[2];
+        const roh = ['PUT', 'POST'].includes(req.method) ? await readRaw(req, 25_000_000) : Buffer.alloc(0);
+        for (const [method, re, fn] of appAuf ? appAufnahmen : adminAufnahmen) {
+          const mm = method === req.method && rest.match(re);
+          if (mm) return send(res, 200, await fn(user, roh, mm.slice(1)));
+        }
+        throw new HttpError(404, 'Unbekannter Endpunkt');
+      }
       if (url.pathname.startsWith('/api/app/')) {
         const user = appUser(req);
         const body = ['POST', 'PUT', 'PATCH'].includes(req.method) ? await readBody(req) : {};
@@ -560,6 +611,17 @@ export function createApp(store, { fetchImpl, env = process.env, vorwaermenBeiSt
       return send(res, status, { fehler: e.message });
     }
   };
+}
+
+async function readRaw(req, max) {
+  const teile = [];
+  let laenge = 0;
+  for await (const chunk of req) {
+    laenge += chunk.length;
+    if (laenge > max) throw new HttpError(413, 'Anfrage zu groß');
+    teile.push(chunk);
+  }
+  return Buffer.concat(teile);
 }
 
 async function readBody(req) {

@@ -35,6 +35,8 @@ struct CloudIch: Decodable, Equatable {
     var mobilnummer: String
     var stimme: String
     var telefonieBereit: Bool
+    struct AufnahmeStand: Decodable, Equatable { var gebraucht: Int; var vorhanden: Int }
+    var aufnahmen: AufnahmeStand?
     /// Nach der Ansage nimmt die sipgate-Mailbox die Nachricht auf
     var mailbox: Bool?
     var letzteSynchronisierung: String?
@@ -189,6 +191,35 @@ final class CloudDienst {
         return try await rohAnfrage("GET", pfad, server: server).0
     }
 
+    // MARK: Aufnahmen (feste Ansage-Bausteine in der eigenen Stimme)
+
+    func aufnahmen(_ k: AppKonfiguration) async throws -> AufnahmenListe {
+        guard let server = k.cloud?.serverURL else { throw Fehler.ungueltigeAdresse }
+        return try await anfrage("GET", "/api/app/aufnahmen", server: server)
+    }
+
+    func aufnahme(_ k: AppKonfiguration, key: String) async throws -> Data {
+        guard let server = k.cloud?.serverURL else { throw Fehler.ungueltigeAdresse }
+        return try await rohAnfrage("GET", "/api/app/aufnahmen/\(Self.pfad(key)).wav", server: server).0
+    }
+
+    func aufnahmeHochladen(_ k: AppKonfiguration, key: String, wav: Data) async throws {
+        guard let server = k.cloud?.serverURL else { throw Fehler.ungueltigeAdresse }
+        _ = try await rohAnfrage("PUT", "/api/app/aufnahmen/\(Self.pfad(key))", server: server, body: wav, typ: "audio/wav")
+        await aktualisieren(k)
+    }
+
+    /// Ein Satz von der KI in der eigenen Stimme (gelernt aus den Aufnahmen).
+    func stimmtest(_ k: AppKonfiguration, text: String) async throws -> Data {
+        guard let server = k.cloud?.serverURL else { throw Fehler.ungueltigeAdresse }
+        let body = try JSONEncoder().encode(["text": text])
+        return try await rohAnfrage("POST", "/api/app/stimmtest", server: server, body: body).0
+    }
+
+    private static func pfad(_ key: String) -> String {
+        key.addingPercentEncoding(withAllowedCharacters: .urlPathAllowed) ?? key
+    }
+
     // MARK: HTTP
 
     private func anfrage<T: Decodable>(_ methode: String, _ pfad: String, server: String, body: Data? = nil) async throws -> T {
@@ -196,18 +227,18 @@ final class CloudDienst {
         return try JSONDecoder().decode(T.self, from: data)
     }
 
-    private func rohAnfrage(_ methode: String, _ pfad: String, server: String, body: Data? = nil) async throws -> (Data, HTTPURLResponse) {
+    private func rohAnfrage(_ methode: String, _ pfad: String, server: String, body: Data? = nil, typ: String = "application/json") async throws -> (Data, HTTPURLResponse) {
         guard let token = Schluesselbund.lesen() else { throw Fehler.keinZugang }
         let basis = server.trimmingCharacters(in: .whitespacesAndNewlines).trimmingCharacters(in: CharacterSet(charactersIn: "/"))
         guard let url = URL(string: basis + pfad), url.scheme == "https" || url.host == "localhost" || url.host == "127.0.0.1" else {
             throw Fehler.ungueltigeAdresse
         }
-        var req = URLRequest(url: url, timeoutInterval: 20)
+        var req = URLRequest(url: url, timeoutInterval: 60)
         req.httpMethod = methode
         req.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization")
         if let body {
             req.httpBody = body
-            req.setValue("application/json", forHTTPHeaderField: "Content-Type")
+            req.setValue(typ, forHTTPHeaderField: "Content-Type")
         }
         let (data, resp) = try await URLSession.shared.data(for: req)
         guard let http = resp as? HTTPURLResponse else { throw Fehler.server("Keine Antwort vom Server") }

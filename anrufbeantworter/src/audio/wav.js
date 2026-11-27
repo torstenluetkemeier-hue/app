@@ -25,7 +25,8 @@ export function leseWav(buf) {
     off = body + size + (size % 2);
   }
   if (!fmt || !data) throw new Error('WAV ohne fmt- oder data-Block');
-  if (fmt.format !== 1 || fmt.bits !== 16) throw new Error('Nur PCM 16 bit wird unterstützt');
+  // 1 = PCM, 0xFFFE = WAVE_FORMAT_EXTENSIBLE (schreiben manche Geräte auch für einfaches PCM)
+  if ((fmt.format !== 1 && fmt.format !== 0xfffe) || fmt.bits !== 16) throw new Error('Bitte als WAV mit 16 bit PCM aufnehmen');
   const frames = Math.floor(data.length / (2 * fmt.kanaele));
   const samples = new Float32Array(frames);
   for (let i = 0; i < frames; i++) {
@@ -119,4 +120,21 @@ export function schreibeWav(samples, rate = TELEFON_RATE) {
     buf.writeInt16LE(Math.round(s < 0 ? s * 32768 : s * 32767), 44 + i * 2);
   }
   return buf;
+}
+
+/** Stille am Anfang und Ende abschneiden (mit kurzem Rand), z. B. bei eigenen Aufnahmen. */
+export function trimmeStille(samples, rate, { schwelle = 0.02, randMs = 120 } = {}) {
+  const fenster = Math.max(1, Math.round(rate * 0.02));
+  const laut = (start) => {
+    let summe = 0;
+    for (let i = start; i < Math.min(samples.length, start + fenster); i++) summe += samples[i] * samples[i];
+    return Math.sqrt(summe / fenster) > schwelle;
+  };
+  let anfang = 0;
+  while (anfang < samples.length && !laut(anfang)) anfang += fenster;
+  let ende = samples.length - fenster;
+  while (ende > anfang && !laut(ende)) ende -= fenster;
+  if (anfang >= samples.length) return new Float32Array(0);
+  const rand = Math.round((randMs / 1000) * rate);
+  return samples.slice(Math.max(0, anfang - rand), Math.min(samples.length, ende + fenster + rand));
 }

@@ -20,7 +20,7 @@ struct CloudView: View {
         let cloud = model.cloud
         Form {
             Section {
-                Text("Statt der Mailbox nimmt ein Cloud-Anrufbeantworter ab. Dein iPhone leitet dafür Anrufe, die du nicht annimmst, an eine eigene **sipgate**-Nummer um. Die Ansage spricht eine Stimme auf dem zollsoft-Server, alles bleibt bei deutschen Anbietern. Vorteile: Die Ansage wechselt **automatisch** mit Status und Kalender, erkannte Anrufer werden **mit Namen** begrüßt, und deine Aussprache-Korrekturen gelten auch dort.")
+                Text("Statt der Mailbox nimmt ein Cloud-Anrufbeantworter ab. Dein iPhone leitet dafür Anrufe, die du nicht annimmst, an eine eigene **sipgate**-Nummer um. Die Ansage besteht aus **deinen eigenen Aufnahmen**; nur der Name eines erkannten Anrufers wird von der KI in deiner Stimme ergänzt. Die Ansage wechselt **automatisch** mit Status und Kalender. Alles bleibt bei deutschen Anbietern.")
                     .font(.callout)
             }
 
@@ -33,7 +33,11 @@ struct CloudView: View {
                 if let ich = cloud.ich {
                     LabeledContent("Angemeldet als", value: ich.name)
                     LabeledContent("Cloud-Nummer", value: ich.cloudNummer.isEmpty ? "noch keine" : ich.cloudNummer)
-                    LabeledContent("Stimme", value: ich.stimme)
+                    NavigationLink {
+                        AufnahmenView()
+                    } label: {
+                        LabeledContent("Meine Aufnahmen", value: ich.aufnahmen.map { "\($0.vorhanden) von \($0.gebraucht)" } ?? "–")
+                    }
                     if !ich.telefonieBereit {
                         Label("Telefonie ist auf dem Server noch nicht fertig eingerichtet.", systemImage: "exclamationmark.triangle")
                             .foregroundStyle(.orange)
@@ -106,7 +110,7 @@ struct CloudView: View {
                 } header: {
                     Text("4 · Testen")
                 } footer: {
-                    Text("Du hörst genau die Datei, die Anrufer hören (Cloud-Stimme, Telefonqualität). Die Cloud-Stimme ist eine andere als die iPhone-Stimme: Höre schwierige Namen einmal gegen. Korrekturen in Lautschrift oder IPA wirken in beiden. Zum Schluss einmal vom Festnetz anrufen und nicht annehmen.")
+                    Text("Du hörst genau die Datei, die Anrufer hören (Telefonqualität): deine Aufnahmen plus Begrüßung mit Namen. Korrekturen in Lautschrift wirken auch bei Anrufernamen. Zum Schluss einmal vom Festnetz anrufen und nicht annehmen.")
                 }
 
                 Section {

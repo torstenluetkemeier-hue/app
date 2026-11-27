@@ -1,6 +1,13 @@
-// Ansagen als Audiodatei für das Telefon erzeugen und zwischenspeichern.
-// Jeder Abschnitt wird einzeln gesprochen und gecacht: Bei einem erkannten Anrufer
-// muss nur die persönliche Begrüßung neu erzeugt werden, der Rest kommt aus dem Cache.
+// Setzt die Ansage für das Telefon zusammen: feste Teile aus Aufnahmen, dynamische Teile
+// (Name des Anrufers, optional Zeitangaben) von der KI in derselben Stimme.
+//
+//   [Guten Tag, Frau Dr. Schneider!]  ← KI (Stimme aus den Aufnahmen), mit Zeitlimit
+//   [Sie sind verbunden mit …]        ← Aufnahme
+//   [Ich bin gerade in einer …]       ← Aufnahme
+//   [Bitte hinterlassen Sie …]        ← Aufnahme
+//
+// Braucht die KI zu lange, wird stattdessen die Aufnahme "Guten Tag!" genommen; das KI-Ergebnis
+// landet trotzdem im Cache und ist beim nächsten Anruf derselben Person sofort da.
 
 import fs from 'node:fs';
 import path from 'node:path';
@@ -8,83 +15,93 @@ import crypto from 'node:crypto';
 import { leseWav, resample, normalisiere, stille, verbinde, schreibeWav, TELEFON_RATE } from '../audio/wav.js';
 import { ttsText } from '../core/aussprache.js';
 
-// Abkürzungen, nach denen kein Satz endet
-const ABKUERZUNGEN = /(?:^|\s)(?:Dr|Prof|Hr|Fr|Nr|Str|Tel|bzw|ca|usw|vgl|z\.\s?B|u\.\s?a|d\.\s?h|[A-ZÄÖÜ])\.$/;
-
-/** Teilt Text in Sätze (Satzzeichen + Leerzeichen), ohne nach "Dr.", "Prof.", "z. B." usw. zu trennen. */
-export function inSaetze(text) {
-  const saetze = [];
-  let aktuell = '';
-  for (const teil of String(text).split(/(?<=[.!?])\s+/)) {
-    aktuell = aktuell ? `${aktuell} ${teil}` : teil;
-    if (!ABKUERZUNGEN.test(aktuell)) {
-      saetze.push(aktuell);
-      aktuell = '';
-    }
-  }
-  if (aktuell) saetze.push(aktuell);
-  return saetze.map((s) => s.trim()).filter(Boolean);
-}
-
-export class AnsageAudio {
+export class AnsageMixer {
   /**
-   * @param verzeichnis  Ablage der fertigen WAV-Dateien (werden unter /audio/<name>.wav ausgeliefert)
-   * @param tts          PiperTts (oder kompatibel: synthesize(text, {lengthScale}) → WAV)
-   * @param geheim       Schlüssel für nicht erratbare Dateinamen
+   * @param verzeichnis Ablage der fertigen WAV-Dateien (ausgeliefert unter /audio/<name>.wav)
+   * @param aufnahmen   Aufnahmen-Verwaltung
+   * @param stimme      Stimmdienst (KI)
+   * @param geheim      Schlüssel für nicht erratbare Dateinamen
    */
-  constructor({ verzeichnis, tts, geheim, maxCache = 400 }) {
+  constructor({ verzeichnis, aufnahmen, stimme, geheim, maxCache = 500 }) {
     this.verzeichnis = verzeichnis;
-    this.tts = tts;
+    this.aufnahmen = aufnahmen;
+    this.stimme = stimme;
     this.geheim = geheim;
-    this.cache = new Map();
+    this.kiCache = new Map();
+    this.laufend = new Map();
     this.maxCache = maxCache;
     fs.mkdirSync(verzeichnis, { recursive: true });
   }
 
-  /**
-   * Spricht einen Abschnitt Satz für Satz. Jeder Satz wird einzeln gecacht – so ist bei einem
-   * erkannten Anrufer nur der kurze Begrüßungssatz mit dem Namen neu zu erzeugen.
-   */
-  async abschnitt(text, lengthScale = 1) {
-    const saetze = inSaetze(text);
-    const teile = await Promise.all(saetze.map((s) => this.satz(s, lengthScale)));
-    const folge = [];
-    teile.forEach((t, i) => {
-      if (i > 0) folge.push(stille(220));
-      folge.push(t);
-    });
-    return verbinde(folge);
-  }
-
-  /** Spricht einen einzelnen Satz (mit Cache) und liefert 8-kHz-Samples. */
-  async satz(text, lengthScale = 1) {
-    const key = `${this.tts.stimme || ''}|${lengthScale}|${text}`;
-    if (this.cache.has(key)) {
-      const s = this.cache.get(key);
-      this.cache.delete(key);
-      this.cache.set(key, s); // zuletzt benutzt nach hinten
-      return s;
+  /** Spricht einen Satz per KI in der Stimme des Mitarbeiters (Cache, keine Doppelaufträge). */
+  ki(user, text) {
+    const ref = this.aufnahmen.referenz(user);
+    const key = `${ref?.hash || 'standard'}|${text}`;
+    if (this.kiCache.has(key)) return Promise.resolve(this.kiCache.get(key));
+    if (!this.laufend.has(key)) {
+      const p = this.stimme.sprich(text, { referenz: ref?.wav })
+        .then((wav) => {
+          const { rate, samples } = leseWav(wav);
+          const tel = normalisiere(resample(samples, rate, TELEFON_RATE));
+          this.kiCache.set(key, tel);
+          if (this.kiCache.size > this.maxCache) this.kiCache.delete(this.kiCache.keys().next().value);
+          return tel;
+        })
+        .finally(() => this.laufend.delete(key));
+      this.laufend.set(key, p);
     }
-    const { rate, samples } = leseWav(await this.tts.synthesize(text, { lengthScale }));
-    const telefon = normalisiere(resample(samples, rate, TELEFON_RATE));
-    this.cache.set(key, telefon);
-    if (this.cache.size > this.maxCache) this.cache.delete(this.cache.keys().next().value);
-    return telefon;
+    return this.laufend.get(key);
   }
 
   /**
-   * Erzeugt die komplette Ansage als WAV-Datei.
-   * @param abschnitte [{ text }] aus der Ansage-Engine
-   * @returns {Promise<{ name: string, datei: string, sekunden: number }>}
+   * @param bausteine aus der Ansage-Engine (antwort.ansage.bausteine)
+   * @returns {Promise<{ name, datei, sekunden, quellen: string[] }>}
    */
-  async ansage(abschnitte, { lexikon = [], pauseMs = 450, tempoProzent = 100, ipaInline = false } = {}) {
-    const texte = abschnitte.map((a) => ttsText(a.text ?? a, lexikon, { ipaInline })).filter(Boolean);
-    const lengthScale = Math.round((100 / (tempoProzent || 100)) * 100) / 100;
+  async ansage(user, bausteine, { lexikon = [], pauseMs = 450, zeitangaben = false, wartezeitMs = 2500 } = {}) {
+    const quellen = [];
+    const teile = [];
+    for (const b of bausteine) {
+      if (b.optional === 'zeitangabe' && !zeitangaben) continue;
+      if (b.key) {
+        const aufnahme = this.aufnahmen.telefon(user, b.key);
+        if (aufnahme) {
+          teile.push(aufnahme);
+          quellen.push(`aufnahme:${b.key}`);
+          continue;
+        }
+      }
+      // Dynamischer Satz oder (noch) fehlende Aufnahme: KI
+      if (!this.stimme.bereit) {
+        quellen.push(`fehlt:${b.key || b.text}`);
+        continue;
+      }
+      const text = ttsText(b.text, lexikon);
+      const ersatz = b.ersatz && this.aufnahmen.telefon(user, b.ersatz);
+      try {
+        const zeitlimit = ersatz ? wartezeitMs : 20_000;
+        const ergebnis = await Promise.race([this.ki(user, text), new Promise((r) => setTimeout(() => r(null), zeitlimit).unref?.())]);
+        if (ergebnis) {
+          teile.push(ergebnis);
+          quellen.push(`ki:${text}`);
+          continue;
+        }
+      } catch (e) {
+        console.warn('KI-Stimme fehlgeschlagen:', e.message);
+      }
+      if (ersatz) {
+        teile.push(ersatz);
+        quellen.push(`aufnahme:${b.ersatz}`);
+      } else {
+        quellen.push(`fehlt:${b.key || b.text}`);
+      }
+    }
+    if (!teile.length) throw new Error('Keine Aufnahmen und keine KI-Stimme verfügbar');
+
     const name = crypto.createHmac('sha256', this.geheim)
-      .update(JSON.stringify([this.tts.stimme, lengthScale, pauseMs, texte])).digest('hex').slice(0, 40) + '.wav';
+      .update(JSON.stringify([user.id, pauseMs, quellen, Object.values(user.aufnahmen || {}).map((a) => a.zeit)]))
+      .digest('hex').slice(0, 40) + '.wav';
     const datei = path.join(this.verzeichnis, name);
     if (!fs.existsSync(datei)) {
-      const teile = await Promise.all(texte.map((t) => this.abschnitt(t, lengthScale)));
       const folge = [stille(250)];
       teile.forEach((t, i) => {
         if (i > 0) folge.push(stille(pauseMs));
@@ -95,8 +112,7 @@ export class AnsageAudio {
       fs.writeFileSync(tmp, schreibeWav(verbinde(folge)));
       fs.renameSync(tmp, datei);
     }
-    const sekunden = (fs.statSync(datei).size - 44) / 2 / TELEFON_RATE;
-    return { name, datei, sekunden };
+    return { name, datei, sekunden: (fs.statSync(datei).size - 44) / 2 / TELEFON_RATE, quellen };
   }
 
   pfad(name) {
