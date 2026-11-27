@@ -1,0 +1,24 @@
+# Cloud-Anrufbeantworter: Server + Piper-Sprachausgabe.
+# Betrieb in einem deutschen Rechenzentrum; davor ein Reverse-Proxy mit TLS (z. B. Caddy).
+services:
+  anrufbeantworter:
+    build: .
+    restart: unless-stopped
+    ports:
+      - "127.0.0.1:8080:8080"   # nur über den Reverse-Proxy erreichbar
+    environment:
+      PUBLIC_URL: ${PUBLIC_URL:?PUBLIC_URL setzen, z. B. https://ab.example.de}
+      ADMIN_TOKEN: ${ADMIN_TOKEN:?ADMIN_TOKEN setzen}
+      PIPER_URL: http://piper:5000
+    volumes:
+      - daten:/data
+    depends_on:
+      - piper
+
+  piper:
+    build: ./piper
+    restart: unless-stopped
+    # kein Port nach außen: nur der Anrufbeantworter spricht mit Piper
+
+volumes:
+  daten:

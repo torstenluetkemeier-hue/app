@@ -1,6 +1,6 @@
 # Konzept: Intelligenter Anrufbeantworter für zollsoft
 
-Stand: 27.11.2026 · Status: Vorschlag + Prototyp (v0.3)
+Stand: 27.11.2026 · Status: Vorschlag + Prototyp (v0.4)
 
 ## 0. Aktuelle Ausrichtung (v0.2): iPhone-App ohne Telefonanlage
 
@@ -10,12 +10,14 @@ Nach Abstimmung liegt der Schwerpunkt auf einer **reinen iPhone-App**, ohne Anbi
 
 | Ziel | Mit reiner iPhone-App | Mit optionaler Cloud-Ausbaustufe (Rufumleitung) |
 |---|---|---|
-| Einheitliche Ansage, angenehme Stimme, korrekte Aussprache | ✅ | ✅ (Firmen- und persönliches Wörterbuch als SSML) |
+| Einheitliche Ansage, angenehme Stimme, korrekte Aussprache | ✅ | ✅ (Firmen- und persönliches Wörterbuch, Piper-Stimme) |
 | Status, Urlaub, Termine, Vertretung | ✅ Ansage wird erzeugt, Wechsel per Erinnerung und einmaligem Einspielen in die Mailbox | ✅ wechselt automatisch |
 | Anrufer mit Namen begrüßen (Qto/ZSWork) | ❌ die Mailbox spielt für alle dieselbe Ansage | ✅ |
-| Rückruf-Aufgabe, Transkript | ❌ (Mailbox des Netzbetreibers) | ✅ |
+| Rückruf-Aufgabe, Transkript | ❌ (Mailbox des Netzbetreibers) | ✅ Rückrufliste + Qto-Aufgabe; Aufnahme in der sipgate-Mailbox |
 
-**Stand v0.3:** Die Cloud-Ausbaustufe ist gebaut. Das iPhone leitet per **bedingter Rufumleitung** (`**61*…*11*20#`, `**67*…#`, `**62*…#`) auf eine Twilio-Nummer um, der Server antwortet mit einer neuralen deutschen Stimme. Die App überträgt Status, Kalender, Texte und Aussprache-Wörterbuch automatisch; Nachrichten erscheinen in der App. Einrichtung: [README.md](README.md).
+**Stand v0.4 – nur deutsche Anbieter:** Das iPhone leitet per **bedingter Rufumleitung** (`**61*…*11*20#`, `**67*…#`, `**62*…#`) auf eine **sipgate**-Nummer um (sipgate GmbH, Düsseldorf, Push-API „sipgate.io“). Die Ansage spricht **Piper** (Open Source) auf dem eigenen Server in einem deutschen Rechenzentrum. Die Sprachnachricht nimmt die **sipgate-Mailbox** auf. Die App überträgt Status, Kalender, Texte und Aussprache-Wörterbuch automatisch. Einrichtung: [README.md](README.md).
+
+Geprüfte Alternativen: **Placetel** (Köln) eignet sich nicht, weil die Call-Control-API keine eigenen Audiodateien und keine Tasteneingabe kennt. Die US-Dienste (Twilio, Cloud-Sprachdienste von Amazon/Google/Microsoft) sind bewusst ausgeschlossen. Wer auch Aufnahme und Transkription selbst betreiben will, nimmt einen eigenen Asterisk an einem deutschen SIP-Trunk.
 
 **Zum Vergleich mit HiProCall:** HiProCall arbeitet mit dem Netzbetreiber zusammen und lädt fertige Ansagen direkt in dessen Mailbox. Das ist bequem, bleibt aber eine feste Ansage für alle Anrufer. Unser Weg über die Rufumleitung braucht keine Partnerschaft mit einem Netzbetreiber und erzeugt die Ansage bei jedem Anruf neu. Nur so sind Begrüßung mit Namen, automatischer Statuswechsel und Tastenwahl zur Vertretung möglich.
 

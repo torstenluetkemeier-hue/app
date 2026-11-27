@@ -35,7 +35,8 @@ struct CloudIch: Decodable, Equatable {
     var mobilnummer: String
     var stimme: String
     var telefonieBereit: Bool
-    var transkription: Bool
+    /// Nach der Ansage nimmt die sipgate-Mailbox die Nachricht auf
+    var mailbox: Bool?
     var letzteSynchronisierung: String?
 }
 
@@ -56,8 +57,9 @@ struct CloudNachricht: Decodable, Identifiable, Equatable {
     var dauerSekunden: Int
     var transkript: String
     var ohneNachricht: Bool?
+    /// An die sipgate-Mailbox übergeben (die Aufnahme liegt dort)
+    var mailbox: Bool?
     var erledigt: Bool
-    var hatAufnahme: Bool
 
     var anrufer: String {
         if let k = kontakt {
@@ -167,14 +169,9 @@ final class CloudDienst {
         if let i = nachrichten.firstIndex(where: { $0.id == n.id }) { nachrichten[i].erledigt = erledigt }
     }
 
-    func ladeAufnahme(_ n: CloudNachricht, _ k: AppKonfiguration) async throws -> Data {
-        guard let server = k.cloud?.serverURL else { throw Fehler.ungueltigeAdresse }
-        return try await rohAnfrage("GET", "/api/app/nachrichten/\(n.id)/audio", server: server).0
-    }
-
     // MARK: Test
 
-    struct Vorschau: Decodable { var text: String; var ssml: String }
+    struct Vorschau: Decodable { var text: String; var gesprochen: String }
 
     func vorschau(_ k: AppKonfiguration, alsAnrufer: String? = nil) async throws -> Vorschau {
         guard let server = k.cloud?.serverURL else { throw Fehler.ungueltigeAdresse }
@@ -183,11 +180,13 @@ final class CloudDienst {
         return try await anfrage("GET", pfad, server: server)
     }
 
-    func probeanruf(_ k: AppKonfiguration) async throws {
+    /// Die Ansage, wie sie am Telefon klingt (Cloud-Stimme, WAV in Telefonqualität).
+    func vorschauAudio(_ k: AppKonfiguration, alsAnrufer: String? = nil) async throws -> Data {
         guard let server = k.cloud?.serverURL else { throw Fehler.ungueltigeAdresse }
         await uebertragen(k, erzwingen: true)
-        struct Antwort: Decodable { var sid: String? }
-        let _: Antwort = try await anfrage("POST", "/api/app/probeanruf", server: server, body: Data("{}".utf8))
+        var pfad = "/api/app/vorschau.wav"
+        if let a = alsAnrufer, let q = a.addingPercentEncoding(withAllowedCharacters: .alphanumerics) { pfad += "?from=\(q)" }
+        return try await rohAnfrage("GET", pfad, server: server).0
     }
 
     // MARK: HTTP

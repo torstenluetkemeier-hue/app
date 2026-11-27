@@ -50,7 +50,7 @@ export function zerlege(text, lexikon = []) {
   return teile;
 }
 
-/** SSML-Fragment (ohne <speak>), wie es Twilio im <Say>-Element erwartet. */
+/** SSML-Fragment (ohne <speak>), z. B. für ein eigenes Voice-Gateway mit SSML-fähiger Stimme. */
 export function ssmlFragment(text, lexikon = []) {
   return zerlege(text, lexikon)
     .map((t) => {
@@ -65,6 +65,21 @@ export function ssmlFragment(text, lexikon = []) {
 /** Klartext mit eingesetzter Lautschrift (für Stimmen ohne SSML und zur Anzeige). */
 export function gesprochenerText(text, lexikon = []) {
   return zerlege(text, lexikon).map((t) => (t.text !== undefined ? t.text : t.lautschrift || t.original)).join('');
+}
+
+/**
+ * Text für Piper: Lautschrift wird eingesetzt. IPA wird – falls eingeschaltet – als Rohphoneme
+ * in Piper-Schreibweise [[ … ]] übergeben, sonst greift die Lautschrift (bzw. das Original).
+ */
+export function ttsText(text, lexikon = [], { ipaInline = false } = {}) {
+  return zerlege(text, lexikon)
+    .map((t) => {
+      if (t.text !== undefined) return t.text;
+      if (t.ipa && ipaInline) return `[[ ${t.ipa.replace(/͡/g, '')} ]]`; // Bindebogen (t͡ʃ) kennt espeak nicht
+      return t.lautschrift || t.original;
+    })
+    .join('')
+    .trim();
 }
 
 /** Ganze Ansage: Abschnitte mit Pausen dazwischen, optional mit Sprechtempo. */

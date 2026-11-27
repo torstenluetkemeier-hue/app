@@ -14,12 +14,13 @@ struct CloudView: View {
     @State private var arbeitet = false
     @State private var vorschau: String?
     @State private var kopiert: String?
+    @State private var player: AVAudioPlayer?
 
     var body: some View {
         let cloud = model.cloud
         Form {
             Section {
-                Text("Statt der Mailbox nimmt ein Cloud-Anrufbeantworter ab. Dein iPhone leitet dafür Anrufe, die du nicht annimmst, an eine eigene Nummer um. Vorteile: Die Ansage wechselt **automatisch** mit Status und Kalender, erkannte Anrufer werden **mit Namen** begrüßt, deine Aussprache-Korrekturen gelten auch dort, und Nachrichten landen hier in der App.")
+                Text("Statt der Mailbox nimmt ein Cloud-Anrufbeantworter ab. Dein iPhone leitet dafür Anrufe, die du nicht annimmst, an eine eigene **sipgate**-Nummer um. Die Ansage spricht eine Stimme auf dem zollsoft-Server, alles bleibt bei deutschen Anbietern. Vorteile: Die Ansage wechselt **automatisch** mit Status und Kalender, erkannte Anrufer werden **mit Namen** begrüßt, und deine Aussprache-Korrekturen gelten auch dort.")
                     .font(.callout)
             }
 
@@ -32,7 +33,7 @@ struct CloudView: View {
                 if let ich = cloud.ich {
                     LabeledContent("Angemeldet als", value: ich.name)
                     LabeledContent("Cloud-Nummer", value: ich.cloudNummer.isEmpty ? "noch keine" : ich.cloudNummer)
-                    LabeledContent("Stimme", value: ich.stimme.replacingOccurrences(of: "Polly.", with: ""))
+                    LabeledContent("Stimme", value: ich.stimme)
                     if !ich.telefonieBereit {
                         Label("Telefonie ist auf dem Server noch nicht fertig eingerichtet.", systemImage: "exclamationmark.triangle")
                             .foregroundStyle(.orange)
@@ -90,17 +91,22 @@ struct CloudView: View {
                         aktion { vorschau = try await model.cloud.vorschau(model.konfig, alsAnrufer: "+49401234567").text }
                     }
                     if let vorschau { Text(vorschau).font(.callout).foregroundStyle(.secondary) }
-                    Button("Probeanruf auf mein Handy") {
+                    Button("▶ Wie am Telefon anhören") {
                         aktion {
-                            try await model.cloud.probeanruf(model.konfig)
-                            meldung = "Du wirst gleich angerufen und hörst deine Ansage mit der Cloud-Stimme."
+                            let daten = try await model.cloud.vorschauAudio(model.konfig)
+                            try abspielen(daten)
                         }
                     }
-                    .disabled(mobilnummer.isEmpty)
+                    Button("▶ Als bekannter Kunde anhören") {
+                        aktion {
+                            let daten = try await model.cloud.vorschauAudio(model.konfig, alsAnrufer: "+49401234567")
+                            try abspielen(daten)
+                        }
+                    }
                 } header: {
                     Text("4 · Testen")
                 } footer: {
-                    Text("Die Cloud-Stimme ist eine andere als die iPhone-Stimme. Höre schwierige Namen per Probeanruf einmal gegen. Korrekturen in Lautschrift oder IPA wirken in beiden.")
+                    Text("Du hörst genau die Datei, die Anrufer hören (Cloud-Stimme, Telefonqualität). Die Cloud-Stimme ist eine andere als die iPhone-Stimme: Höre schwierige Namen einmal gegen. Korrekturen in Lautschrift oder IPA wirken in beiden. Zum Schluss einmal vom Festnetz anrufen und nicht annehmen.")
                 }
 
                 Section {
@@ -167,6 +173,13 @@ struct CloudView: View {
         }
     }
 
+    private func abspielen(_ daten: Data) throws {
+        try AVAudioSession.sharedInstance().setCategory(.playback, mode: .spokenAudio)
+        try AVAudioSession.sharedInstance().setActive(true)
+        player = try AVAudioPlayer(data: daten)
+        player?.play()
+    }
+
     private func aktion(_ f: @escaping () async throws -> Void) {
         arbeitet = true
         Task {
@@ -180,14 +193,12 @@ struct CloudView: View {
 struct NachrichtenView: View {
     @Environment(AppModel.self) private var model
     @State private var fehler: String?
-    @State private var player: AVAudioPlayer?
-    @State private var spielt: String?
 
     var body: some View {
         let liste = model.cloud.nachrichten
         List {
             if liste.isEmpty {
-                ContentUnavailableView("Keine Nachrichten", systemImage: "tray", description: Text("Nachrichten vom Cloud-Anrufbeantworter erscheinen hier."))
+                ContentUnavailableView("Keine Anrufe", systemImage: "tray", description: Text("Anrufe, die der Cloud-Anrufbeantworter angenommen hat, erscheinen hier. Sprachnachrichten hörst du in der sipgate-App oder per E-Mail von sipgate."))
             }
             ForEach(liste) { n in
                 VStack(alignment: .leading, spacing: 6) {
@@ -205,15 +216,12 @@ struct NachrichtenView: View {
                     }
                     if !n.transkript.isEmpty {
                         Text("„\(n.transkript)“")
+                    } else if n.mailbox == true {
+                        Label("Nachricht in der sipgate-Mailbox", systemImage: "recordingtape").foregroundStyle(.secondary)
                     } else if n.ohneNachricht == true {
-                        Text("Hat keine Nachricht hinterlassen").foregroundStyle(.secondary)
+                        Text("Hat aufgelegt, ohne Nachricht").foregroundStyle(.secondary)
                     }
                     HStack(spacing: 16) {
-                        if n.hatAufnahme {
-                            Button { abspielen(n) } label: {
-                                Label(spielt == n.id ? "Stopp" : "Anhören (\(n.dauerSekunden) s)", systemImage: spielt == n.id ? "stop.fill" : "play.fill")
-                            }
-                        }
                         if let nr = n.nummer, let url = URL(string: "tel:\(nr)") {
                             Link(destination: url) { Label("Zurückrufen", systemImage: "phone.fill") }
                         }
@@ -244,23 +252,4 @@ struct NachrichtenView: View {
         do { try await model.cloud.ladeNachrichten(model.konfig) } catch { fehler = error.localizedDescription }
     }
 
-    private func abspielen(_ n: CloudNachricht) {
-        if spielt == n.id {
-            player?.stop()
-            spielt = nil
-            return
-        }
-        Task {
-            do {
-                let daten = try await model.cloud.ladeAufnahme(n, model.konfig)
-                try AVAudioSession.sharedInstance().setCategory(.playback, mode: .spokenAudio)
-                try AVAudioSession.sharedInstance().setActive(true)
-                player = try AVAudioPlayer(data: daten)
-                player?.play()
-                spielt = n.id
-            } catch {
-                fehler = error.localizedDescription
-            }
-        }
-    }
 }

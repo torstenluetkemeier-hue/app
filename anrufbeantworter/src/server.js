@@ -1,10 +1,14 @@
 // HTTP-Server: Verwaltungs-API + Weboberfläche, App-API für die iPhone-App,
-// Twilio-Webhooks für den Cloud-Anrufbeantworter. Ohne externe Abhängigkeiten (Node.js ≥ 22).
+// Webhooks für sipgate.io (Cloud-Anrufbeantworter). Ohne externe Abhängigkeiten (Node.js ≥ 22).
+//
+// Alle Dienste aus Deutschland: Telefonie über sipgate (Düsseldorf), Sprachausgabe mit Piper
+// auf dem eigenen Server, Betrieb in einem deutschen Rechenzentrum.
 //
 // Zugriffsschutz:
-//   /api/app/*   Bearer-Token des Mitarbeiters (in der Weboberfläche erzeugt, in der App eingetragen)
-//   /tw/*        Twilio-Signatur (X-Twilio-Signature)
-//   /api/*       sonst: ADMIN_TOKEN (falls gesetzt) – ohne ADMIN_TOKEN nur für localhost gedacht
+//   /api/app/*        Bearer-Token des Mitarbeiters (in der Weboberfläche erzeugt, in der App eingetragen)
+//   /sg/<geheim>/*    sipgate-Webhooks; sipgate signiert nicht, daher geheimer Pfadbestandteil (+ HTTPS)
+//   /audio/<hash>.wav nicht erratbare Dateinamen (HMAC), werden nach 24 h gelöscht
+//   /api/*            sonst: ADMIN_TOKEN (falls gesetzt) – ohne ADMIN_TOKEN nur für localhost gedacht
 
 import http from 'node:http';
 import fs from 'node:fs';
@@ -17,12 +21,13 @@ import { MOCK_KONTAKTE } from './crm/mock.js';
 import { answerCall, resolveStatus } from './core/engine.js';
 import { normalizeNumber } from './core/phone.js';
 import { fromLocal } from './core/time.js';
-import { mergeLexika, ansageSsml } from './core/aussprache.js';
+import { mergeLexika, ansageSsml, ttsText } from './core/aussprache.js';
 import { MODI, TERMIN_ARTEN, ABWESEND_ARTEN, REGEL_BEDINGUNGEN, DEFAULT_TEXTE, defaultUser } from './core/defaults.js';
 import { notify } from './notify.js';
 import { uebernehmeAppKonfiguration, SyncFehler } from './appsync.js';
-import * as twilio from './telephony/twilio.js';
-import { transkribiere, sttKonfiguriert } from './stt.js';
+import * as sipgate from './telephony/sipgate.js';
+import { PiperTts, PIPER_STIMMEN } from './tts/piper.js';
+import { AnsageAudio } from './tts/ansageAudio.js';
 
 const HERE = path.dirname(fileURLToPath(import.meta.url));
 const PUBLIC = path.join(HERE, '..', 'public');
@@ -34,8 +39,24 @@ class HttpError extends Error {
 }
 
 const sha256 = (s) => crypto.createHash('sha256').update(s).digest('hex');
+const gleich = (a, b) => {
+  const x = Buffer.from(sha256(String(a)));
+  const y = Buffer.from(sha256(String(b)));
+  return crypto.timingSafeEqual(x, y);
+};
 
-export function createApp(store, { fetchImpl, env = process.env, verzoegerungMs = 15_000 } = {}) {
+/** Sprechtempo der App (iOS-Rate, 0,5 = normal) in Prozent. */
+export function tempoProzent(tempo) {
+  if (!tempo) return 100;
+  return Math.max(70, Math.min(130, Math.round((tempo / 0.5) * 100)));
+}
+
+/** Binäre Antwort (WAV) aus einer Route. */
+class Wav {
+  constructor(daten) { this.daten = daten; }
+}
+
+export function createApp(store, { fetchImpl, env = process.env, vorwaermenBeiStart = true } = {}) {
   let adapter, lookup;
   const rebuildCrm = () => {
     adapter = createAdapter(store.config.crm, fetchImpl ? { fetchImpl } : {});
@@ -43,23 +64,25 @@ export function createApp(store, { fetchImpl, env = process.env, verzoegerungMs 
   };
   rebuildCrm();
 
-  // Laufende Anrufe (callId bzw. Twilio CallSid → Zustand)
+  const tel = () => store.config.telefonie;
+  const basisUrl = () => (env.PUBLIC_URL || tel().publicUrl || '').replace(/\/+$/, '');
+  const webhookGeheimnis = () => env.SIPGATE_WEBHOOK_SECRET || tel().sipgate.webhookGeheimnis;
+  const sgBasis = () => `${basisUrl()}/sg/${webhookGeheimnis()}`;
+
+  let tts, audio;
+  const rebuildTts = () => {
+    tts = new PiperTts({ url: env.PIPER_URL || tel().tts.piperUrl, stimme: tel().tts.stimme, fetchImpl });
+    audio = new AnsageAudio({ verzeichnis: path.join(store.dir, 'audio'), tts, geheim: tel().audioGeheimnis });
+  };
+  rebuildTts();
+  setInterval(() => audio.aufraeumen(), 3600_000).unref();
+
+  // Laufende Anrufe (sipgate callId → Zustand)
   const anrufe = new Map();
   const merkeAnruf = (callId, daten) => {
-    anrufe.set(callId, { ...daten, start: new Date().toISOString(), nachrichtId: null });
-    setTimeout(() => anrufe.delete(callId), 60 * 60_000).unref();
+    anrufe.set(callId, { ...daten, start: new Date().toISOString(), nachrichtId: null, phase: 'ansage', mailbox: false, weitergeleitet: null });
+    setTimeout(() => anrufe.delete(callId), 2 * 3600_000).unref();
   };
-
-  const twilioCfg = () => {
-    const t = store.config.telefonie.twilio;
-    return {
-      accountSid: env.TWILIO_ACCOUNT_SID || t.accountSid,
-      authToken: env.TWILIO_AUTH_TOKEN || t.authToken,
-      stimme: t.stimme || 'Polly.Vicki-Neural',
-      absenderNummer: t.absenderNummer,
-    };
-  };
-  const basisUrl = () => (env.PUBLIC_URL || store.config.telefonie.publicUrl || '').replace(/\/+$/, '');
 
   const getUser = (id) => {
     const u = store.user(id);
@@ -67,7 +90,7 @@ export function createApp(store, { fetchImpl, env = process.env, verzoegerungMs 
     return u;
   };
 
-  /** Welcher Mitarbeiter ist gemeint? Eigene Cloud-Nummer, umleitende Handynummer oder Durchwahl. */
+  /** Welcher Mitarbeiter ist gemeint? Eigene sipgate-Nummer, umleitende Handynummer (diversion) oder Durchwahl. */
   const findeMitarbeiter = ({ to, umgeleitetVon } = {}) => {
     const users = store.config.users;
     if (!to && !umgeleitetVon) return users[0];
@@ -75,21 +98,24 @@ export function createApp(store, { fetchImpl, env = process.env, verzoegerungMs 
     if (byId) return byId;
     const n = normalizeNumber(to);
     const u = normalizeNumber(umgeleitetVon);
-    return users.find((x) => n && normalizeNumber(x.cloud?.nummer) === n)
-      || users.find((x) => u && [x.cloud?.mobilnummer, x.profil.durchwahl].some((m) => normalizeNumber(m) === u))
+    return users.find((x) => u && [x.cloud?.mobilnummer, x.profil.durchwahl].some((m) => normalizeNumber(m) === u))
+      || users.find((x) => n && normalizeNumber(x.cloud?.nummer) === n)
       || users.find((x) => n && normalizeNumber(x.profil.durchwahl) === n)
       || (users.length === 1 ? users[0] : null);
   };
 
+  const telefonieStatus = () => ({
+    ttsBereit: tts.bereit,
+    publicUrl: basisUrl(),
+    webhookUrl: basisUrl() ? `${sgBasis()}/anruf` : null,
+    hangupUrl: basisUrl() ? `${sgBasis()}/ende` : null,
+  });
+
   const publicConfig = () => {
     const c = structuredClone(store.config);
     for (const k of ['qto', 'zswork']) if (c.crm[k]?.apiToken) c.crm[k].apiToken = MASKE;
-    if (c.telefonie.twilio.authToken) c.telefonie.twilio.authToken = MASKE;
-    c.telefonie.status = {
-      twilioBereit: !!(twilioCfg().accountSid && twilioCfg().authToken),
-      publicUrl: basisUrl(),
-      transkription: sttKonfiguriert(),
-    };
+    delete c.telefonie.audioGeheimnis;
+    c.telefonie.status = telefonieStatus();
     for (const u of c.users) {
       u.appZugang = !!u.appTokenHash;
       delete u.appTokenHash;
@@ -113,22 +139,47 @@ export function createApp(store, { fetchImpl, env = process.env, verzoegerungMs 
     const suche = user.optionen?.anruferErkennung === false ? { kontakt: null, fehler: null } : await lookup.find(nummer);
     const antwort = answerCall(user, { nummer, kontakt: suche.kontakt }, now);
     antwort.crm = { adapter: adapter.name, dauerMs: Date.now() - t0, fehler: suche.fehler, ausCache: !!suche.ausCache };
-    antwort.ansage.ssml = ansageSsml(antwort.ansage.abschnitte, {
-      lexikon: lexikonFuer(user), pauseMs: user.stimme?.pauseMs, tempoProzent: twilio.tempoProzent(user.stimme?.tempo),
-    });
+    const lexikon = lexikonFuer(user);
+    antwort.ansage.ssml = ansageSsml(antwort.ansage.abschnitte, { lexikon, pauseMs: user.stimme?.pauseMs, tempoProzent: tempoProzent(user.stimme?.tempo) });
+    antwort.ansage.gesprochen = antwort.ansage.abschnitte.map((a) => ttsText(a.text, lexikon, { ipaInline: tel().tts.ipaInline })).join(' ');
     return { user, antwort };
   }
 
-  const twimlOptionen = (user, callId) => ({
-    callId, basis: basisUrl(), stimme: twilioCfg().stimme, lexikon: lexikonFuer(user),
-    pauseMs: user.stimme?.pauseMs, tempo: user.stimme?.tempo,
+  /** Ansage als Telefon-WAV (Cache je Abschnitt). */
+  const audioFuer = (user, abschnitte) => audio.ansage(abschnitte, {
+    lexikon: lexikonFuer(user),
+    pauseMs: user.stimme?.pauseMs ?? 450,
+    tempoProzent: tempoProzent(user.stimme?.tempo),
+    ipaInline: tel().tts.ipaInline,
   });
+
+  /**
+   * Ansagen im Voraus erzeugen, damit Anrufe sofort beantwortet werden: für unbekannte Anrufer
+   * komplett, für erkannte Anrufer alle Sätze außer der persönlichen Begrüßung (Cache je Satz).
+   */
+  const vorwaermen = (user) => {
+    if (!tts.bereit) return;
+    const beispiele = [
+      null,
+      { typ: 'praxis', anrede: 'Frau', nachname: 'Beispiel', vip: false },
+      { typ: 'praxis', anrede: 'Frau', nachname: 'Beispiel', vip: true, betreuerId: user.id },
+    ];
+    (async () => {
+      for (const kontakt of beispiele) {
+        const antwort = answerCall(user, { nummer: kontakt ? '+490' : null, kontakt });
+        await audioFuer(user, antwort.ansage.abschnitte);
+      }
+    })().catch((e) => console.warn('Vorab-Erzeugung der Ansage fehlgeschlagen:', e.message));
+  };
+  if (vorwaermenBeiStart) setTimeout(() => store.config.users.forEach(vorwaermen), 100).unref();
+
+  const wavFuerText = async (text) => new Wav(fs.readFileSync((await audio.ansage([{ text }], {})).datei));
 
   // ---------------------------------------------------------------- Verwaltung (Admin)
   const adminRoutes = [
     ['GET', /^\/api\/meta$/, () => ({
       modi: MODI, terminArten: TERMIN_ARTEN, abwesendArten: ABWESEND_ARTEN, regelBedingungen: REGEL_BEDINGUNGEN,
-      standardTexte: DEFAULT_TEXTE, stimmen: twilio.STIMMEN,
+      standardTexte: DEFAULT_TEXTE, stimmen: PIPER_STIMMEN,
       testAnrufer: MOCK_KONTAKTE.map((k) => ({
         nummer: k.telefonnummern[0],
         label: `${[k.anrede, k.titel, k.vorname, k.nachname].filter(Boolean).join(' ') || k.organisation} – ${k.organisation} (${k.typ}${k.vip ? ', VIP' : ''})`,
@@ -157,15 +208,24 @@ export function createApp(store, { fetchImpl, env = process.env, verzoegerungMs 
     }],
 
     ['PUT', /^\/api\/telefonie$/, (_, body) => {
-      const t = store.config.telefonie;
+      const t = tel();
       if (typeof body.publicUrl === 'string') t.publicUrl = body.publicUrl.trim();
-      if (body.twilio) {
-        for (const k of ['accountSid', 'stimme', 'absenderNummer']) if (typeof body.twilio[k] === 'string') t.twilio[k] = body.twilio[k].trim();
-        if (body.twilio.authToken && body.twilio.authToken !== MASKE) t.twilio.authToken = body.twilio.authToken.trim();
+      if (body.sipgate) {
+        if (typeof body.sipgate.mailbox === 'boolean') t.sipgate.mailbox = body.sipgate.mailbox;
+        if (body.sipgate.neuesGeheimnis) t.sipgate.webhookGeheimnis = crypto.randomBytes(18).toString('base64url');
+      }
+      if (body.tts) {
+        if (typeof body.tts.piperUrl === 'string') t.tts.piperUrl = body.tts.piperUrl.trim();
+        if (typeof body.tts.stimme === 'string') t.tts.stimme = body.tts.stimme.trim();
+        if (typeof body.tts.ipaInline === 'boolean') t.tts.ipaInline = body.tts.ipaInline;
       }
       store.saveConfig();
+      rebuildTts();
       return publicConfig().telefonie;
     }],
+    ['POST', /^\/api\/tts\/test$/, async (_, body) => wavFuerText(String(body.text || 'Guten Tag! Dies ist ein Test der Sprachausgabe.').slice(0, 500))],
+    // Kurze Ansage für die sipgate-Mailbox (dort einmal hochladen, damit nach unserer Ansage nur noch der Signalton folgt)
+    ['GET', /^\/api\/mailbox-ansage\.wav$/, async () => wavFuerText('Bitte sprechen Sie jetzt.')],
     ['PUT', /^\/api\/lexikon$/, (_, body) => {
       if (!Array.isArray(body.lexikon)) throw new HttpError(400, 'lexikon fehlt');
       store.config.lexikon = body.lexikon
@@ -193,6 +253,7 @@ export function createApp(store, { fetchImpl, env = process.env, verzoegerungMs 
         if (body[k] !== undefined) u[k] = body[k];
       }
       store.saveConfig();
+      vorwaermen(u);
       return publicConfig().users.find((x) => x.id === u.id);
     }],
     // Zugangsschlüssel für die iPhone-App. Wird nur einmal angezeigt, gespeichert wird der Hash.
@@ -215,6 +276,7 @@ export function createApp(store, { fetchImpl, env = process.env, verzoegerungMs 
         ganztags: !!body.ganztags, vertretungId: body.vertretungId, notiz: body.notiz || '', gesetztAm: new Date().toISOString(),
       } : null;
       store.saveConfig();
+      vorwaermen(u);
       return { status: u.status, aktuell: resolveStatus(u) };
     }],
     ['POST', /^\/api\/users\/([\w.-]+)\/kalender$/, ([id], body) => {
@@ -238,19 +300,20 @@ export function createApp(store, { fetchImpl, env = process.env, verzoegerungMs 
       return { ok: true };
     }],
 
-    // Vorschau: was hört ein Anrufer mit dieser Nummer zu diesem Zeitpunkt? (inkl. TwiML)
-    ['POST', /^\/api\/vorschau$/, async (_, body) => {
+    // Vorschau: was hört ein Anrufer mit dieser Nummer zu diesem Zeitpunkt?
+    ['POST', /^\/api\/vorschau$/, async (_, body) => (await handleCall(body)).antwort],
+    // Dieselbe Vorschau als Audio in Telefonqualität (Piper-Stimme, 8 kHz)
+    ['POST', /^\/api\/vorschau\/audio$/, async (_, body) => {
       const { user, antwort } = await handleCall(body);
-      antwort.twiml = twilio.antwortTwiml(antwort, twimlOptionen(user, 'VORSCHAU'));
-      return antwort;
+      return new Wav(fs.readFileSync((await audioFuer(user, antwort.ansage.abschnitte)).datei));
     }],
 
-    // Generische Telefonie-Schnittstelle (eigenes Voice-Gateway statt Twilio)
+    // Generische Telefonie-Schnittstelle (eigenes Voice-Gateway, z. B. Asterisk an einem deutschen SIP-Trunk)
     ['POST', /^\/api\/telephony\/incoming$/, async (_, body) => {
       const { user, antwort } = await handleCall({ to: body.to, umgeleitetVon: body.umgeleitetVon, userId: body.userId, from: body.from, zeit: body.zeit });
       const callId = body.callId || crypto.randomUUID();
       merkeAnruf(callId, { userId: user.id, antwort });
-      return { callId, ablauf: antwort.ablauf, status: antwort.status, anrufer: antwort.anrufer, ssml: antwort.ansage.ssml };
+      return { callId, ablauf: antwort.ablauf, status: antwort.status, anrufer: antwort.anrufer, ssml: antwort.ansage.ssml, gesprochen: antwort.ansage.gesprochen };
     }],
     ['POST', /^\/api\/telephony\/dtmf$/, (_, body) => {
       const call = anrufe.get(body.callId);
@@ -292,11 +355,6 @@ export function createApp(store, { fetchImpl, env = process.env, verzoegerungMs 
     if (!u) throw new HttpError(401, 'Zugangsschlüssel ungültig');
     return u;
   };
-  const eigeneNachricht = (u, id) => {
-    const n = store.nachricht(id);
-    if (!n || n.userId !== u.id) throw new HttpError(404, 'Nachricht nicht gefunden');
-    return n;
-  };
 
   const appRoutes = [
     ['GET', /^\/api\/app\/ich$/, (u) => ({
@@ -304,9 +362,9 @@ export function createApp(store, { fetchImpl, env = process.env, verzoegerungMs 
       name: `${u.profil.vorname} ${u.profil.nachname}`.trim(),
       cloudNummer: u.cloud?.nummer || '',
       mobilnummer: u.cloud?.mobilnummer || '',
-      stimme: twilioCfg().stimme,
-      telefonieBereit: !!(twilioCfg().accountSid && twilioCfg().authToken && basisUrl()),
-      transkription: sttKonfiguriert(),
+      stimme: PIPER_STIMMEN[tel().tts.stimme] || tel().tts.stimme,
+      telefonieBereit: !!(tts.bereit && basisUrl()),
+      mailbox: tel().sipgate.mailbox !== false,
       letzteSynchronisierung: u.appSync?.zeit || null,
       aktuell: resolveStatus(u),
     })],
@@ -318,112 +376,87 @@ export function createApp(store, { fetchImpl, env = process.env, verzoegerungMs 
         throw e;
       }
       store.saveConfig();
+      vorwaermen(u);
       return { ok: true, zeit: u.appSync.zeit, aktuell: resolveStatus(u) };
     }],
     ['GET', /^\/api\/app\/vorschau$/, async (u, _, q) => {
       const { antwort } = await handleCall({ userId: u.id, from: q.from || null });
-      return { text: antwort.ansage.text, ssml: antwort.ansage.ssml, status: antwort.status, anrufer: antwort.anrufer };
+      return { text: antwort.ansage.text, gesprochen: antwort.ansage.gesprochen, status: antwort.status, anrufer: antwort.anrufer };
     }],
-    ['POST', /^\/api\/app\/probeanruf$/, async (u, body) => {
-      const cfg = twilioCfg();
-      if (!cfg.accountSid || !cfg.authToken) throw new HttpError(503, 'Twilio ist auf dem Server noch nicht eingerichtet');
-      const an = body.an || u.cloud?.mobilnummer;
-      const von = u.cloud?.nummer || cfg.absenderNummer;
-      if (!an) throw new HttpError(400, 'Keine Handynummer hinterlegt');
-      if (!von) throw new HttpError(400, 'Keine Cloud-Nummer als Absender hinterlegt');
-      const { antwort } = await handleCall({ userId: u.id, from: body.alsAnrufer || null });
-      const twiml = `<?xml version="1.0" encoding="UTF-8"?><Response><Pause length="1"/>`
-        + `<Say voice="${cfg.stimme}" language="de-DE">${antwort.ansage.ssml}</Say><Hangup/></Response>`;
-      return twilio.probeanruf({ accountSid: cfg.accountSid, authToken: cfg.authToken, von, an, twiml }, fetchImpl);
+    // So klingt die Ansage am Telefon (Cloud-Stimme, 8 kHz)
+    ['GET', /^\/api\/app\/vorschau\.wav$/, async (u, _, q) => {
+      const { antwort } = await handleCall({ userId: u.id, from: q.from || null });
+      return new Wav(fs.readFileSync((await audioFuer(u, antwort.ansage.abschnitte)).datei));
     }],
     ['GET', /^\/api\/app\/nachrichten$/, (u) => store.nachrichten.filter((n) => n.userId === u.id).slice(0, 200)
-      .map(({ aufnahmeUrl, benachrichtigung, ...n }) => ({ ...n, hatAufnahme: !!aufnahmeUrl }))],
+      .map(({ aufnahmeUrl, benachrichtigung, ...n }) => n)],
     ['PATCH', /^\/api\/app\/nachrichten\/([\w-]+)$/, (u, body, _, [id]) => {
-      const n = eigeneNachricht(u, id);
+      const n = store.nachricht(id);
+      if (!n || n.userId !== u.id) throw new HttpError(404, 'Nachricht nicht gefunden');
       if (body.erledigt !== undefined) n.erledigt = !!body.erledigt;
       store.saveMessages();
       return { ok: true, erledigt: n.erledigt };
     }],
   ];
 
-  // ---------------------------------------------------------------- Twilio-Webhooks
-  const twilioRoutes = {
-    // Eingehender (umgeleiteter) Anruf
-    '/tw/voice': async (p) => {
-      const callId = p.CallSid || crypto.randomUUID();
+  // ---------------------------------------------------------------- sipgate.io-Webhooks
+  const sipgateRoutes = {
+    // Neuer Anruf (umgeleitet vom Diensthandy oder direkt auf die sipgate-Nummer)
+    anruf: async (p) => {
+      if (p.direction && p.direction !== 'in') return sipgate.leerXml();
+      const callId = p.callId || crypto.randomUUID();
       try {
-        const { user, antwort } = await handleCall({ to: p.To || p.Called, umgeleitetVon: p.ForwardedFrom, from: p.From });
+        const { user, antwort } = await handleCall({ to: p.to, umgeleitetVon: p.diversion, from: p.from });
         merkeAnruf(callId, { userId: user.id, antwort });
-        return twilio.antwortTwiml(antwort, twimlOptionen(user, callId));
+        const datei = await audioFuer(user, antwort.ansage.abschnitte);
+        const q = `callId=${encodeURIComponent(callId)}`;
+        return sipgate.ansageXml({
+          audioUrl: `${basisUrl()}/audio/${datei.name}`,
+          datenUrl: `${sgBasis()}/daten?${q}`,
+          hangupUrl: `${sgBasis()}/ende?${q}`,
+        });
       } catch (e) {
-        console.error('Twilio /tw/voice:', e.message);
-        return twilio.fehlerTwiml(twilioCfg().stimme);
+        // Lieber die Mailbox als ein abgebrochener Anruf
+        console.error('sipgate /anruf:', e.message);
+        return tel().sipgate.mailbox !== false ? sipgate.mailboxXml() : sipgate.auflegenXml();
       }
     },
-    // Taste während der Ansage
-    '/tw/taste': (p, q) => {
+    // Ende der Ansage bzw. gedrückte Taste (Gather onData)
+    daten: async (p, q) => {
       const call = anrufe.get(q.callId);
-      const stimme = twilioCfg().stimme;
-      if (!call) return twilio.fehlerTwiml(stimme);
-      const auswahl = call.antwort.ablauf.find((s) => s.typ === 'auswahl' && s.taste === String(p.Digits));
-      if (auswahl) {
+      if (!call) return sipgate.mailboxXml();
+      const ablauf = call.antwort.ablauf;
+      if (call.phase === 'verbinden') return sipgate.waehleXml(call.weitergeleitet.telefon);
+      const taste = String(p.dtmf || '');
+      const auswahl = ablauf.find((s) => s.typ === 'auswahl');
+      const direkt = ablauf.find((s) => s.typ === 'weiterleiten');
+      if (auswahl && taste === auswahl.taste) {
+        call.phase = 'verbinden';
         call.weitergeleitet = auswahl.ziel;
-        return twilio.weiterleitenTwiml(auswahl.ziel, stimme);
+        const user = getUser(call.userId);
+        const datei = await audioFuer(user, [{ text: `Einen Moment bitte, ich verbinde Sie mit ${auswahl.ziel.name}.` }]);
+        return sipgate.ansageXml({ audioUrl: `${basisUrl()}/audio/${datei.name}`, datenUrl: `${sgBasis()}/daten?callId=${encodeURIComponent(q.callId)}`, timeoutMs: 1 });
       }
-      // Andere Taste: weiter zur Aufnahme
-      const aufnahme = call.antwort.ablauf.find((s) => s.typ === 'aufnahme');
-      return aufnahme
-        ? `<?xml version="1.0" encoding="UTF-8"?><Response>${twilio.recordTwiml(aufnahme.maxSekunden, basisUrl(), `callId=${encodeURIComponent(q.callId)}`)}</Response>`
-        : twilio.abschiedTwiml(stimme);
-    },
-    // Ende der Aufnahme (auch wenn der Anrufer auflegt)
-    '/tw/aufnahme-ende': async (p, q) => {
-      await nachrichtAusAufnahme(q.callId, p);
-      return twilio.abschiedTwiml(twilioCfg().stimme);
-    },
-    // Aufnahme fertig verarbeitet (Absicherung, falls aufnahme-ende nicht ankam)
-    '/tw/aufnahme': async (p, q) => {
-      if (p.RecordingStatus === 'completed') await nachrichtAusAufnahme(q.callId, p);
-      return '<?xml version="1.0" encoding="UTF-8"?><Response/>';
-    },
-    // Anrufstatus (in der Twilio-Konsole an der Nummer eintragen): Anrufe ohne Nachricht festhalten
-    '/tw/status': (p) => {
-      const call = anrufe.get(p.CallSid);
-      if (call && p.CallStatus === 'completed') {
-        setTimeout(() => {
-          if (!call.nachrichtId && !call.weitergeleitet) {
-            const n = baueNachricht(getUser(call.userId), call.antwort, { ohneNachricht: true });
-            call.nachrichtId = n.id;
-            store.nachrichten.unshift(n);
-            store.saveMessages();
-          }
-        }, verzoegerungMs).unref?.();
+      if (direkt) {
+        call.weitergeleitet = direkt.ziel;
+        return sipgate.waehleXml(direkt.ziel.telefon);
       }
-      return '<?xml version="1.0" encoding="UTF-8"?><Response/>';
+      if (ablauf.some((s) => s.typ === 'aufnahme') && tel().sipgate.mailbox !== false) {
+        call.mailbox = true;
+        return sipgate.mailboxXml();
+      }
+      return sipgate.auflegenXml();
+    },
+    // Anruf beendet: in die Rückrufliste (sipgate verwirft die Antwort)
+    ende: async (p, q) => {
+      const call = anrufe.get(q.callId);
+      if (call && !call.nachrichtId && !call.weitergeleitet) {
+        const n = await saveMessage(getUser(call.userId), call.antwort, { mailbox: call.mailbox, ohneNachricht: !call.mailbox, ursache: p.cause });
+        call.nachrichtId = n.id;
+      }
+      return sipgate.leerXml();
     },
   };
-
-  async function nachrichtAusAufnahme(callId, p) {
-    const call = anrufe.get(callId);
-    if (!call || call.nachrichtId || !p.RecordingUrl) return;
-    const dauer = Number(p.RecordingDuration) || 0;
-    const user = getUser(call.userId);
-    const n = await saveMessage(user, call.antwort, { aufnahmeUrl: p.RecordingUrl, dauerSekunden: dauer, ohneNachricht: dauer < 1 }, { benachrichtigen: false });
-    call.nachrichtId = n.id;
-    // Transkription und Benachrichtigung im Hintergrund, Twilio bekommt sofort Antwort
-    (async () => {
-      try {
-        if (sttKonfiguriert() && dauer >= 1) {
-          const mp3 = await twilio.ladeAufnahme(twilioCfg(), p.RecordingUrl, fetchImpl);
-          n.transkript = (await transkribiere(mp3, fetchImpl)) || '';
-        }
-      } catch (e) {
-        n.transkriptFehler = e.message;
-      }
-      n.benachrichtigung = await notify(user, n, fetchImpl);
-      store.saveMessages();
-    })();
-  }
 
   function baueNachricht(user, antwort, body) {
     return {
@@ -437,6 +470,8 @@ export function createApp(store, { fetchImpl, env = process.env, verzoegerungMs 
       dauerSekunden: body.dauerSekunden || 0,
       transkript: body.transkript || '',
       aufnahmeUrl: body.aufnahmeUrl || null,
+      // true: Anrufer wurde an die sipgate-Mailbox übergeben (Aufnahme liegt dort)
+      mailbox: !!body.mailbox,
       ohneNachricht: !!body.ohneNachricht,
       erledigt: false,
       aufgabe: null,
@@ -444,7 +479,7 @@ export function createApp(store, { fetchImpl, env = process.env, verzoegerungMs 
     };
   }
 
-  async function saveMessage(user, antwort, body, { benachrichtigen = true } = {}) {
+  async function saveMessage(user, antwort, body) {
     const nachricht = baueNachricht(user, antwort, body);
     const k = nachricht.kontakt;
     const wer = k ? [k.anrede, k.titel, k.nachname].filter(Boolean).join(' ') || k.organisation : nachricht.nummer || 'Anonym';
@@ -453,7 +488,7 @@ export function createApp(store, { fetchImpl, env = process.env, verzoegerungMs 
         nachricht.aufgabe = await adapter.createCallbackTask({
           userId: user.id,
           titel: `Rückruf: ${wer}${k?.organisation && wer !== k.organisation ? ` (${k.organisation})` : ''}`,
-          beschreibung: nachricht.transkript || 'Nachricht auf dem Anrufbeantworter',
+          beschreibung: nachricht.transkript || (nachricht.mailbox ? 'Nachricht in der sipgate-Mailbox' : 'Anruf auf dem Anrufbeantworter'),
           prioritaet: nachricht.prioritaet,
           kontakt: k,
           nummer: nachricht.nummer,
@@ -464,7 +499,7 @@ export function createApp(store, { fetchImpl, env = process.env, verzoegerungMs 
         nachricht.aufgabe = { fehler: e.message, system: adapter.name };
       }
     }
-    if (benachrichtigen) nachricht.benachrichtigung = await notify(user, nachricht, fetchImpl);
+    nachricht.benachrichtigung = await notify(user, nachricht, fetchImpl);
     store.nachrichten.unshift(nachricht);
     store.saveMessages();
     return nachricht;
@@ -475,38 +510,30 @@ export function createApp(store, { fetchImpl, env = process.env, verzoegerungMs 
     if (!env.ADMIN_TOKEN) return;
     const auth = req.headers.authorization || '';
     const token = auth.startsWith('Bearer ') ? auth.slice(7) : req.headers['x-admin-token'] || '';
-    const a = Buffer.from(sha256(String(token)));
-    const b = Buffer.from(sha256(env.ADMIN_TOKEN));
-    if (!crypto.timingSafeEqual(a, b)) throw new HttpError(401, 'Admin-Zugang erforderlich');
-  };
-
-  const pruefeTwilio = (req, url, params) => {
-    const { authToken } = twilioCfg();
-    if (!authToken) throw new HttpError(503, 'Twilio ist nicht konfiguriert');
-    const basis = basisUrl();
-    if (!basis) throw new HttpError(503, 'PUBLIC_URL ist nicht gesetzt');
-    if (!twilio.signaturGueltig(authToken, basis + url.pathname + url.search, params, req.headers['x-twilio-signature'])) {
-      throw new HttpError(403, 'Ungültige Twilio-Signatur');
-    }
+    if (!gleich(token, env.ADMIN_TOKEN)) throw new HttpError(401, 'Admin-Zugang erforderlich');
   };
 
   // ---------------------------------------------------------------- Routing
   return async function handler(req, res) {
     const url = new URL(req.url, 'http://localhost');
     try {
-      if (url.pathname.startsWith('/tw/')) {
-        const fn = twilioRoutes[url.pathname];
-        if (!fn || req.method !== 'POST') throw new HttpError(404, 'Unbekannter Endpunkt');
+      const sg = url.pathname.match(/^\/sg\/([\w-]+)\/(anruf|daten|ende)$/);
+      if (sg) {
+        if (req.method !== 'POST' || !gleich(sg[1], webhookGeheimnis())) throw new HttpError(404, 'Unbekannter Endpunkt');
         const params = await readBody(req);
-        pruefeTwilio(req, url, params);
-        const xmlAntwort = await fn(params, Object.fromEntries(url.searchParams));
-        res.writeHead(200, { 'Content-Type': 'text/xml; charset=utf-8', 'Cache-Control': 'no-store' });
-        return res.end(xmlAntwort);
+        const antwortXml = await sipgateRoutes[sg[2]](params, Object.fromEntries(url.searchParams));
+        res.writeHead(200, { 'Content-Type': 'application/xml; charset=utf-8', 'Cache-Control': 'no-store' });
+        return res.end(antwortXml);
+      }
+      const au = url.pathname.match(/^\/audio\/([a-f0-9]{40}\.wav)$/);
+      if (au && req.method === 'GET') {
+        const datei = audio.pfad(au[1]);
+        if (!datei) throw new HttpError(404, 'Nicht gefunden');
+        res.writeHead(200, { 'Content-Type': 'audio/wav', 'Content-Length': fs.statSync(datei).size, 'Cache-Control': 'private, max-age=3600' });
+        return fs.createReadStream(datei).pipe(res);
       }
       if (url.pathname.startsWith('/api/app/')) {
         const user = appUser(req);
-        const m = url.pathname.match(/^\/api\/app\/nachrichten\/([\w-]+)\/audio$/);
-        if (m && req.method === 'GET') return streamAufnahme(eigeneNachricht(user, m[1]), res);
         const body = ['POST', 'PUT', 'PATCH'].includes(req.method) ? await readBody(req) : {};
         for (const [method, re, fn] of appRoutes) {
           const mm = method === req.method && url.pathname.match(re);
@@ -516,12 +543,6 @@ export function createApp(store, { fetchImpl, env = process.env, verzoegerungMs 
       }
       if (url.pathname.startsWith('/api/')) {
         pruefeAdmin(req);
-        const m = url.pathname.match(/^\/api\/nachrichten\/([\w-]+)\/audio$/);
-        if (m && req.method === 'GET') {
-          const n = store.nachricht(m[1]);
-          if (!n) throw new HttpError(404, 'Nachricht nicht gefunden');
-          return streamAufnahme(n, res);
-        }
         const body = ['POST', 'PUT', 'PATCH'].includes(req.method) ? await readBody(req) : {};
         for (const [method, re, fn] of adminRoutes) {
           if (method !== req.method) continue;
@@ -539,13 +560,6 @@ export function createApp(store, { fetchImpl, env = process.env, verzoegerungMs 
       return send(res, status, { fehler: e.message });
     }
   };
-
-  async function streamAufnahme(n, res) {
-    if (!n.aufnahmeUrl) throw new HttpError(404, 'Keine Aufnahme vorhanden');
-    const mp3 = await twilio.ladeAufnahme(twilioCfg(), n.aufnahmeUrl, fetchImpl);
-    res.writeHead(200, { 'Content-Type': 'audio/mpeg', 'Content-Length': mp3.length, 'Cache-Control': 'private, no-store' });
-    res.end(mp3);
-  }
 }
 
 async function readBody(req) {
@@ -562,6 +576,10 @@ async function readBody(req) {
 }
 
 function send(res, status, data) {
+  if (data instanceof Wav) {
+    res.writeHead(status, { 'Content-Type': 'audio/wav', 'Content-Length': data.daten.length, 'Cache-Control': 'no-store' });
+    return res.end(data.daten);
+  }
   res.writeHead(status, { 'Content-Type': 'application/json; charset=utf-8', 'Cache-Control': 'no-store' });
   res.end(JSON.stringify(data));
 }

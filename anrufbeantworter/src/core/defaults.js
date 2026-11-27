@@ -1,4 +1,5 @@
 // Stammdaten und Standardkonfiguration des Anrufbeantworters.
+import crypto from 'node:crypto';
 
 export const MODI = {
   standard: { label: 'Standard (nicht erreichbar)', kurz: 'Standard' },
@@ -137,7 +138,7 @@ export function defaultUser() {
     lexikon: [],
     // Sprechweise (aus der iPhone-App): Tempo wie iOS (0,5 = normal), Pause zwischen Abschnitten
     stimme: { tempo: 0.48, pauseMs: 450 },
-    // Cloud-Anrufbeantworter: eigene Twilio-Nummer und/oder Handynummer, von der umgeleitet wird
+    // Cloud-Anrufbeantworter: eigene sipgate-Nummer und/oder Handynummer, von der umgeleitet wird
     cloud: { nummer: '', mobilnummer: '' },
     appTokenHash: null,
     appSync: null,
@@ -147,7 +148,15 @@ export function defaultUser() {
 /** Ergänzt fehlende Felder in älteren Konfigurationsdateien. */
 export function migrateConfig(config) {
   const d = defaultConfig();
-  config.telefonie = { ...d.telefonie, ...(config.telefonie || {}), twilio: { ...d.telefonie.twilio, ...(config.telefonie?.twilio || {}) } };
+  const t = config.telefonie || {};
+  config.telefonie = {
+    publicUrl: t.publicUrl ?? '',
+    sipgate: { ...d.telefonie.sipgate, ...(t.sipgate || {}) },
+    tts: { ...d.telefonie.tts, ...(t.tts || {}) },
+  };
+  // Geheimer Teil der Webhook-Adresse (sipgate signiert Webhooks nicht)
+  if (!config.telefonie.sipgate.webhookGeheimnis) config.telefonie.sipgate.webhookGeheimnis = crypto.randomBytes(18).toString('base64url');
+  if (!config.telefonie.audioGeheimnis) config.telefonie.audioGeheimnis = crypto.randomBytes(24).toString('base64url');
   config.lexikon ??= [];
   for (const u of config.users || []) {
     const du = defaultUser();
@@ -168,15 +177,20 @@ export function defaultConfig() {
       cacheMinuten: 10,
     },
     telefonie: {
-      // Öffentliche Basis-URL des Servers (für Twilio-Webhooks und Signaturprüfung), z. B. https://ab.example.de
+      // Öffentliche Basis-URL des Servers (sipgate ruft Webhooks und Audiodateien darüber ab), z. B. https://ab.example.de
       publicUrl: '',
-      twilio: {
-        accountSid: '',
-        authToken: '',
-        // Deutsche Cloud-Stimme für alle Mitarbeiter (einheitlicher Klang)
-        stimme: 'Polly.Vicki-Neural',
-        // Absender für Probeanrufe, falls ein Mitarbeiter keine eigene Cloud-Nummer hat
-        absenderNummer: '',
+      // sipgate.io (sipgate GmbH, Düsseldorf)
+      sipgate: {
+        webhookGeheimnis: '',
+        // Nach der Ansage: sipgate-Mailbox nimmt die Nachricht auf (Funktion in sipgate buchen)
+        mailbox: true,
+      },
+      // Sprachausgabe mit Piper auf eigenem Server (Open Source, keine Daten an Dritte)
+      tts: {
+        piperUrl: '',
+        stimme: 'de_DE-thorsten-high',
+        // IPA-Korrekturen als Piper-Rohphoneme [[ … ]] übergeben (sonst Lautschrift)
+        ipaInline: true,
       },
     },
     // Firmenweites Aussprache-Wörterbuch (z. B. Kundennamen); persönliche Einträge haben Vorrang

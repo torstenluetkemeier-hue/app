@@ -74,7 +74,7 @@ struct AnsageView: View {
                     } icon: {
                         Image(systemName: "icloud.and.arrow.up").foregroundStyle(.tint)
                     }
-                    NavigationLink("Einstellungen & Probeanruf") { CloudView() }
+                    NavigationLink("Einstellungen & Probehören") { CloudView() }
                 } footer: {
                     Text("Erkannte Anrufer werden in der Cloud zusätzlich mit Namen begrüßt („Guten Tag, Frau Dr. Schneider!“).")
                 }
@@ -234,7 +234,7 @@ struct MailboxAnleitungView: View {
                 Text("Wechsel der Ansage")
             }
             Section {
-                Text("Statt der Mailbox nimmt der Cloud-Anrufbeantworter ab: Das iPhone leitet per Rufumleitung (`**61*…#`) dorthin um. Die Ansage wechselt dann automatisch mit Status und Kalender, und erkannte Anrufer werden mit Namen begrüßt. Die Firmen-Telefonanlage bleibt außen vor.")
+                Text("Statt der Mailbox nimmt der Cloud-Anrufbeantworter ab: Das iPhone leitet per Rufumleitung (`**61*…#`) auf eine sipgate-Nummer um. Die Ansage wechselt dann automatisch mit Status und Kalender, und erkannte Anrufer werden mit Namen begrüßt. Alles bei deutschen Anbietern, die Firmen-Telefonanlage bleibt außen vor.")
                 NavigationLink("Cloud-Anrufbeantworter einrichten") { CloudView() }
             } header: {
                 Text("Empfohlen: Cloud-Anrufbeantworter")

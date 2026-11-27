@@ -4,26 +4,35 @@ import http from 'node:http';
 import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
-import { createApp } from '../src/server.js';
+import { createApp, tempoProzent } from '../src/server.js';
 import { Store } from '../src/store.js';
-import { signatur, waehlbar, tempoProzent } from '../src/telephony/twilio.js';
-import { zerlege, ssmlFragment, mergeLexika, gesprochenerText } from '../src/core/aussprache.js';
+import { waehlbar } from '../src/telephony/sipgate.js';
+import { zerlege, ssmlFragment, mergeLexika, gesprochenerText, ttsText } from '../src/core/aussprache.js';
+import { leseWav, schreibeWav, resample, normalisiere } from '../src/audio/wav.js';
+import { inSaetze } from '../src/tts/ansageAudio.js';
 import { uebernehmeAppKonfiguration, SyncFehler } from '../src/appsync.js';
 import { defaultUser } from '../src/core/defaults.js';
 
 const BASIS = 'https://ab.example.de';
-const AUTH = 'twilio-test-token';
-let server, base, dir, store;
-const twilioAufrufe = [];
+let server, base, dir, store, geheim;
+const piperTexte = [];
 
-// Ersetzt Netzwerkzugriffe: Twilio-REST-API und Aufnahmen
+/** Erzeugt eine "Sprach"-WAV wie Piper (22,05 kHz), Länge abhängig vom Text. */
+function fakeWav(text) {
+  const rate = 22050;
+  const n = Math.round(rate * (0.2 + text.length / 40));
+  const s = new Float32Array(n);
+  for (let i = 0; i < n; i++) s[i] = 0.3 * Math.sin((2 * Math.PI * 440 * i) / rate);
+  return schreibeWav(s, rate);
+}
+
+// Ersetzt Netzwerkzugriffe: Piper-Sprachausgabe (und Webhooks)
 const fakeFetch = async (url, init = {}) => {
-  twilioAufrufe.push({ url: String(url), init });
-  if (String(url).includes('/Calls.json')) {
-    return { ok: true, status: 201, json: async () => ({ sid: 'CA_PROBE', status: 'queued' }) };
-  }
-  if (String(url).endsWith('.mp3')) {
-    return { ok: true, status: 200, arrayBuffer: async () => new Uint8Array([0x49, 0x44, 0x33, 1, 2, 3]).buffer };
+  if (String(url).endsWith('/synthesize')) {
+    const body = JSON.parse(init.body);
+    piperTexte.push(body);
+    const wav = fakeWav(body.text);
+    return { ok: true, status: 200, arrayBuffer: async () => wav.buffer.slice(wav.byteOffset, wav.byteOffset + wav.length) };
   }
   return { ok: true, status: 200, json: async () => ({}) };
 };
@@ -32,29 +41,29 @@ before(async () => {
   dir = fs.mkdtempSync(path.join(os.tmpdir(), 'ab-cloud-'));
   store = new Store(dir);
   store.config.telefonie.publicUrl = BASIS;
-  store.config.telefonie.twilio.accountSid = 'AC123';
-  store.config.telefonie.twilio.authToken = AUTH;
-  store.config.lexikon = [{ schreibweise: 'Hoffmann', ipa: 'ˈhɔfman', lautschrift: '' }];
+  store.config.telefonie.tts.piperUrl = 'http://piper.intern:5000';
+  store.config.lexikon = [{ schreibweise: 'Hoffmann', ipa: 'ˈhɔfman', lautschrift: 'Hoffmann' }];
+  geheim = store.config.telefonie.sipgate.webhookGeheimnis;
   const u = store.user('mmeyer');
   u.cloud = { nummer: '+49 30 111222', mobilnummer: '0171 9998877' };
-  // Zweiter Mitarbeiter ohne eigene Cloud-Nummer, erkannt über die umleitende Handynummer
+  // Zweiter Mitarbeiter ohne eigene Nummer: erkannt über die umleitende Handynummer (sipgate: diversion)
   const t = defaultUser();
   Object.assign(t, { id: 'tmueller', kalender: [], status: null });
   t.profil = { ...t.profil, vorname: 'Thomas', nachname: 'Müller' };
   t.cloud = { nummer: '', mobilnummer: '+49 160 5554433' };
   store.config.users.push(t);
   store.saveConfig();
-  server = http.createServer(createApp(store, { fetchImpl: fakeFetch, env: {}, verzoegerungMs: 20 }));
+  server = http.createServer(createApp(store, { fetchImpl: fakeFetch, env: {}, vorwaermenBeiStart: false }));
   await new Promise((r) => server.listen(0, '127.0.0.1', r));
   base = `http://127.0.0.1:${server.address().port}`;
 });
 after(() => { server.close(); fs.rmSync(dir, { recursive: true, force: true }); });
 
-async function tw(pfad, params, { signiert = true } = {}) {
-  const headers = { 'Content-Type': 'application/x-www-form-urlencoded' };
-  if (signiert) headers['X-Twilio-Signature'] = signatur(AUTH, BASIS + pfad, params);
-  const res = await fetch(base + pfad, { method: 'POST', headers, body: new URLSearchParams(params) });
-  return { status: res.status, text: await res.text() };
+async function sg(aktion, params, { pfadGeheimnis = geheim, query = '' } = {}) {
+  const res = await fetch(`${base}/sg/${pfadGeheimnis}/${aktion}${query}`, {
+    method: 'POST', headers: { 'Content-Type': 'application/x-www-form-urlencoded' }, body: new URLSearchParams(params),
+  });
+  return { status: res.status, typ: res.headers.get('content-type'), text: await res.text() };
 }
 
 async function api(method, pfad, body, token) {
@@ -62,103 +71,157 @@ async function api(method, pfad, body, token) {
   if (token) headers.Authorization = `Bearer ${token}`;
   const res = await fetch(base + pfad, { method, headers, body: body && JSON.stringify(body) });
   const typ = res.headers.get('content-type') || '';
-  return { status: res.status, data: typ.includes('json') ? await res.json() : Buffer.from(await res.arrayBuffer()) };
+  return { status: res.status, typ, data: typ.includes('json') ? await res.json() : Buffer.from(await res.arrayBuffer()) };
 }
+
+const neuerAnruf = (callId, from, extra = {}) => sg('anruf', { event: 'newCall', direction: 'in', from, to: '4930111222', callId, 'user[]': 'Max Meyer', ...extra });
+const audioUrl = (xml) => xml.match(/<Url>([^<]+)<\/Url>/)[1];
 
 // --------------------------------------------------------------------------------------------
 
-test('Aussprache: Wörterbuch wird ganzwortig als SSML eingesetzt', () => {
-  const lex = [
-    { schreibweise: 'Nguyen', lautschrift: 'Nuien', ipa: '' },
-    { schreibweise: 'Çelik', lautschrift: 'Tschelik', ipa: 'tʃeˈlik' },
-  ];
-  assert.equal(ssmlFragment('Frau Nguyen & Herr Çelik, nicht Nguyenweg', lex),
-    'Frau <sub alias="Nuien">Nguyen</sub> &amp; Herr <phoneme alphabet="ipa" ph="tʃeˈlik">Çelik</phoneme>, nicht Nguyenweg');
-  assert.equal(gesprochenerText('NGUYEN', lex), 'Nuien');
-  assert.equal(zerlege('Max Meyer', [{ schreibweise: 'Meyer' }]).length, 1, 'Einträge ohne Korrektur ändern nichts');
-  const merged = mergeLexika([{ schreibweise: 'Kraus', lautschrift: 'A' }], [{ schreibweise: 'kraus', lautschrift: 'B' }]);
-  assert.deepEqual(merged.map((e) => e.lautschrift), ['B'], 'persönlicher Eintrag hat Vorrang');
+test('Audio: Telefonqualität 8 kHz mono 16 bit, gleichmäßige Lautstärke', () => {
+  const wav = fakeWav('Guten Tag');
+  const { rate, samples } = leseWav(wav);
+  assert.equal(rate, 22050);
+  const tel = normalisiere(resample(samples, rate, 8000));
+  assert.ok(Math.abs(tel.length - Math.floor(samples.length * 8000 / 22050)) <= 1);
+  assert.ok(Math.abs(Math.max(...tel) - 0.89) < 0.01);
+  const zurueck = leseWav(schreibeWav(tel));
+  assert.equal(zurueck.rate, 8000);
+  assert.equal(zurueck.samples.length, tel.length);
 });
 
-test('Twilio: Hilfsfunktionen', () => {
-  assert.equal(waehlbar('+49 3641 000 200'), '+493641000200');
-  assert.equal(waehlbar('0171/1234567'), '+491711234567');
+test('Aussprache: Lautschrift, IPA für Piper und SSML', () => {
+  const lex = [
+    { schreibweise: 'Nguyen', lautschrift: 'Nuien', ipa: '' },
+    { schreibweise: 'Çelik', lautschrift: 'Tschelik', ipa: 't͡ʃeˈlik' },
+  ];
+  assert.equal(ttsText('Frau Nguyen und Herr Çelik', lex), 'Frau Nuien und Herr Tschelik');
+  assert.equal(ttsText('Frau Nguyen und Herr Çelik', lex, { ipaInline: true }), 'Frau Nuien und Herr [[ tʃeˈlik ]]');
+  assert.equal(ssmlFragment('Nguyen & Çelik', lex), '<sub alias="Nuien">Nguyen</sub> &amp; <phoneme alphabet="ipa" ph="t͡ʃeˈlik">Çelik</phoneme>');
+  assert.equal(gesprochenerText('NGUYEN', lex), 'Nuien');
+  assert.equal(zerlege('Max Meyer', [{ schreibweise: 'Meyer' }]).length, 1, 'Einträge ohne Korrektur ändern nichts');
+  assert.deepEqual(mergeLexika([{ schreibweise: 'Kraus', lautschrift: 'A' }], [{ schreibweise: 'kraus', lautschrift: 'B' }]).map((e) => e.lautschrift), ['B']);
+});
+
+test('Sätze werden nicht nach Abkürzungen getrennt', () => {
+  assert.deepEqual(inSaetze('Guten Tag, Herr Prof. Dr. Hoffmann! Sie sind verbunden. Z. B. mit Frau M. Kraus?'),
+    ['Guten Tag, Herr Prof. Dr. Hoffmann!', 'Sie sind verbunden.', 'Z. B. mit Frau M. Kraus?']);
+});
+
+test('Hilfsfunktionen', () => {
+  assert.equal(waehlbar('+49 3641 000 200'), '493641000200');
+  assert.equal(waehlbar('0171/1234567'), '491711234567');
   assert.equal(tempoProzent(0.48), 96);
 });
 
-test('Webhook ohne gültige Signatur wird abgelehnt', async () => {
-  const r = await tw('/tw/voice', { CallSid: 'CA0', From: '+49897654321', To: '+4930111222' }, { signiert: false });
-  assert.equal(r.status, 403);
+test('Webhook mit falschem Geheimnis wird abgelehnt', async () => {
+  const r = await sg('anruf', { event: 'newCall', from: '4989', to: '4930111222', callId: 'x' }, { pfadGeheimnis: 'falsch' });
+  assert.equal(r.status, 404);
 });
 
-test('Umgeleiteter Anruf eines VIP-Kunden: Begrüßung mit Namen, Aussprache, Tastenwahl, Aufnahme', async () => {
-  const r = await tw('/tw/voice', { CallSid: 'CA1', From: '+49897654321', To: '+4930111222', ForwardedFrom: '+491719998877' });
+test('VIP-Kunde ruft an: persönliche Ansage als WAV, Taste 1 verbindet mit der Vertretung', async () => {
+  const r = await neuerAnruf('c1', '49897654321', { diversion: '491719998877' });
   assert.equal(r.status, 200);
-  assert.match(r.text, /^<\?xml/);
-  assert.match(r.text, /<Gather input="dtmf" numDigits="1"[^>]*action="https:\/\/ab\.example\.de\/tw\/taste\?callId=CA1"/);
-  assert.match(r.text, /<Say voice="Polly\.Vicki-Neural" language="de-DE">/);
-  assert.match(r.text, /Guten (Morgen|Tag|Abend), Herr Prof\. Dr\. <phoneme alphabet="ipa" ph="ˈhɔfman">Hoffmann<\/phoneme>!/);
-  assert.match(r.text, /<break time="450ms"\/>/);
-  assert.match(r.text, /<Record maxLength="120"[^>]*recordingStatusCallback="https:\/\/ab\.example\.de\/tw\/aufnahme\?callId=CA1"/);
+  assert.match(r.typ, /application\/xml/);
+  assert.match(r.text, new RegExp(`<Response onHangup="https://ab\\.example\\.de/sg/${geheim}/ende\\?callId=c1">`));
+  assert.match(r.text, new RegExp(`<Gather onData="https://ab\\.example\\.de/sg/${geheim}/daten\\?callId=c1" maxDigits="1" timeout="1500">`));
+  const url = audioUrl(r.text);
+  assert.match(url, /^https:\/\/ab\.example\.de\/audio\/[a-f0-9]{40}\.wav$/);
 
-  const t = await tw('/tw/taste?callId=CA1', { CallSid: 'CA1', Digits: '1' });
-  assert.match(t.text, /ich verbinde Sie mit Thomas Müller/);
-  assert.match(t.text, /<Dial>\+493641000200<\/Dial>/);
+  // Die Datei liefert der Server selbst aus – in sipgate-Format
+  const wav = await fetch(base + new URL(url).pathname);
+  assert.equal(wav.status, 200);
+  const { rate } = leseWav(Buffer.from(await wav.arrayBuffer()));
+  assert.equal(rate, 8000);
+
+  // An Piper ging der persönliche Text mit IPA-Korrektur aus dem Firmen-Wörterbuch
+  assert.ok(piperTexte.some((p) => /^Guten (Morgen|Tag|Abend), Herr Prof\. Dr\. \[\[ ˈhɔfman \]\]!/.test(p.text)), JSON.stringify(piperTexte.map((p) => p.text)));
+  assert.equal(piperTexte[0].voice, 'de_DE-thorsten-high');
+  assert.equal(piperTexte[0].length_scale, 1.04);
+
+  const t = await sg('daten', { event: 'dtmf', dtmf: '1', callId: 'c1' }, { query: '?callId=c1' });
+  assert.match(t.text, /<Gather [^>]*timeout="1"><Play><Url>/, 'erst "Einen Moment bitte …" abspielen');
+  assert.ok(piperTexte.some((p) => p.text === 'Einen Moment bitte, ich verbinde Sie mit Thomas Müller.'));
+  const v = await sg('daten', { event: 'dtmf', callId: 'c1' }, { query: '?callId=c1' });
+  assert.equal(v.text, '<?xml version="1.0" encoding="UTF-8"?><Response><Dial><Number>493641000200</Number></Dial></Response>');
+
+  await sg('ende', { event: 'hangup', cause: 'normalClearing', callId: 'c1' }, { query: '?callId=c1' });
+  assert.equal(store.nachrichten.filter((n) => n.nummer === '+49897654321').length, 0, 'weitergeleitet: kein Rückruf nötig');
 });
 
-test('Nachricht wird gespeichert, nicht doppelt, Aufnahme über die App abrufbar', async () => {
-  await tw('/tw/voice', { CallSid: 'CA2', From: '040 1234567', To: '+4930111222' });
-  const ende = await tw('/tw/aufnahme-ende?callId=CA2', { CallSid: 'CA2', RecordingUrl: 'https://api.twilio.com/rec/RE2', RecordingDuration: '14' });
-  assert.match(ende.text, /Vielen Dank für Ihre Nachricht/);
-  await tw('/tw/aufnahme?callId=CA2', { CallSid: 'CA2', RecordingUrl: 'https://api.twilio.com/rec/RE2', RecordingStatus: 'completed', RecordingDuration: '14' });
-  const eigene = store.nachrichten.filter((n) => n.aufnahmeUrl === 'https://api.twilio.com/rec/RE2');
-  assert.equal(eigene.length, 1);
-  assert.equal(eigene[0].kontakt.nachname, 'Schneider');
-  assert.equal(eigene[0].prioritaet, 'hoch');
-  assert.match(eigene[0].aufgabe.id, /^MOCK-/);
+test('Ohne Taste: Übergabe an die sipgate-Mailbox, Eintrag in der Rückrufliste', async () => {
+  const vorher = piperTexte.length;
+  await neuerAnruf('c2', '0401234567');
+  const m = await sg('daten', { event: 'dtmf', callId: 'c2' }, { query: '?callId=c2' });
+  assert.match(m.text, /<Dial><Voicemail \/><\/Dial>/);
+  await sg('ende', { event: 'hangup', cause: 'normalClearing', callId: 'c2' }, { query: '?callId=c2' });
+  const n = store.nachrichten.find((x) => x.nummer === '+49401234567');
+  assert.equal(n.mailbox, true);
+  assert.equal(n.kontakt.nachname, 'Schneider');
+  assert.equal(n.prioritaet, 'hoch');
+  assert.match(n.aufgabe.id, /^MOCK-/);
 
-  const zugang = await api('POST', '/api/users/mmeyer/app-zugang');
-  const audio = await api('GET', `/api/app/nachrichten/${eigene[0].id}/audio`, undefined, zugang.data.token);
-  assert.equal(audio.status, 200);
-  assert.equal(audio.data[0], 0x49);
-  const abruf = twilioAufrufe.find((a) => a.url === 'https://api.twilio.com/rec/RE2.mp3');
-  assert.equal(abruf.init.headers.Authorization, 'Basic ' + Buffer.from(`AC123:${AUTH}`).toString('base64'));
+  // Zweiter Anruf derselben Kundin: Ansage kommt komplett aus dem Cache
+  const zwischen = piperTexte.length;
+  assert.ok(zwischen > vorher);
+  await neuerAnruf('c2b', '0401234567');
+  assert.equal(piperTexte.length, zwischen, 'keine erneute Sprachsynthese');
 });
 
-test('Anruf ohne Nachricht landet trotzdem in der Rückrufliste', async () => {
-  await tw('/tw/voice', { CallSid: 'CA3', From: '+4922199887', To: '+4930111222' });
-  await tw('/tw/status', { CallSid: 'CA3', CallStatus: 'completed' });
-  await new Promise((r) => setTimeout(r, 60));
+test('Aufgelegt während der Ansage: Anruf ohne Nachricht', async () => {
+  await neuerAnruf('c3', '4922199887');
+  await sg('ende', { event: 'hangup', cause: 'cancel', callId: 'c3' }, { query: '?callId=c3' });
   const n = store.nachrichten.find((x) => x.nummer === '+4922199887');
-  assert.equal(n?.ohneNachricht, true);
+  assert.equal(n.ohneNachricht, true);
+  assert.equal(n.mailbox, false);
 });
 
-test('Mitarbeiter ohne eigene Cloud-Nummer wird über die umleitende Handynummer erkannt', async () => {
-  const r = await tw('/tw/voice', { CallSid: 'CA4', From: '+4930999', To: '+4930777000', ForwardedFrom: '+491605554433' });
-  assert.match(r.text, /Anschluss von Thomas Müller/);
+test('Mitarbeiter wird über die umleitende Handynummer (diversion) erkannt', async () => {
+  await sg('anruf', { event: 'newCall', direction: 'in', from: '4930999', to: '4930777000', callId: 'c4', diversion: '491605554433' });
+  assert.ok(piperTexte.some((p) => p.text.includes('Anschluss von Thomas Müller')));
 });
 
-test('App-API: Zugang, Synchronisierung, Vorschau, Probeanruf', async () => {
-  const ohne = await api('GET', '/api/app/ich');
-  assert.equal(ohne.status, 401);
+test('Ausgehende Anrufe werden ignoriert, Fehler der Sprachausgabe führen zur Mailbox', async () => {
+  const aus = await sg('anruf', { event: 'newCall', direction: 'out', from: '4930111222', to: '4989', callId: 'c5' });
+  assert.equal(aus.text, '<?xml version="1.0" encoding="UTF-8"?><Response />');
+
+  const d = fs.mkdtempSync(path.join(os.tmpdir(), 'ab-fehler-'));
+  const st = new Store(d);
+  st.config.telefonie.publicUrl = BASIS;
+  st.config.telefonie.tts.piperUrl = 'http://piper.intern:5000';
+  const kaputt = async () => { throw new Error('Piper nicht erreichbar'); };
+  const s = http.createServer(createApp(st, { fetchImpl: kaputt, env: {}, vorwaermenBeiStart: false }));
+  await new Promise((r) => s.listen(0, '127.0.0.1', r));
+  const res = await fetch(`http://127.0.0.1:${s.address().port}/sg/${st.config.telefonie.sipgate.webhookGeheimnis}/anruf`, {
+    method: 'POST', headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+    body: new URLSearchParams({ event: 'newCall', direction: 'in', from: '4989', to: '4930111222', callId: 'f1' }),
+  });
+  assert.match(await res.text(), /<Dial><Voicemail \/><\/Dial>/);
+  s.close();
+});
+
+test('App-API: Zugang, Synchronisierung, Vorschau als Text und als Telefon-Audio', async () => {
+  assert.equal((await api('GET', '/api/app/ich')).status, 401);
   const { data: { token } } = await api('POST', '/api/users/mmeyer/app-zugang');
   assert.match(token, /^ab_mmeyer_/);
   const ich = await api('GET', '/api/app/ich', undefined, token);
   assert.equal(ich.data.name, 'Max Meyer');
   assert.equal(ich.data.telefonieBereit, true);
+  assert.match(ich.data.stimme, /Thorsten/);
+
   const cfg = await api('GET', '/api/config');
   assert.equal(cfg.data.users[0].appTokenHash, undefined, 'Hash wird nicht ausgeliefert');
-  assert.equal(cfg.data.telefonie.twilio.authToken, '••••••');
+  assert.equal(cfg.data.telefonie.audioGeheimnis, undefined);
+  assert.equal(cfg.data.telefonie.status.webhookUrl, `${BASIS}/sg/${geheim}/anruf`);
 
-  // Konfiguration aus der App (Format, das AnrufbeantworterCore.CloudPayload erzeugt)
   const sync = await api('PUT', '/api/app/konfiguration', {
-    version: '0.3.0',
+    version: '0.4.0',
     profil: { vorname: 'Max', nachname: 'Meyer', funktion: 'Vertrieb' },
     vertretungen: [{ id: 'v1', name: 'Gülşen Yılmaz', telefon: '0171 2223344' }],
     standardVertretungId: 'v1',
     vertretungNennenIn: ['urlaub', 'termin'],
     status: { modus: 'termin', art: 'online-praesentation', freitext: '', bis: '2099-01-01T15:00', ganztags: false },
-    kalender: [{ id: 'k1', titel: 'Urlaub', modus: 'urlaub', art: '', von: '2099-07-01', bis: '2099-07-14', ganztags: true, vertretungId: '' }],
     texte: { intro: '{{begruessung}}! Hier ist {{ich.name}} von {{firma.name}}.' },
     lexikon: [{ schreibweise: 'Gülşen Yılmaz', lautschrift: 'Gülschen Jilmas', ipa: '' }],
     stimme: { tempo: 0.5, pauseMs: 300 },
@@ -168,19 +231,21 @@ test('App-API: Zugang, Synchronisierung, Vorschau, Probeanruf', async () => {
 
   const v = await api('GET', '/api/app/vorschau', undefined, token);
   assert.match(v.data.text, /Hier ist Max Meyer von zollsoft\. Ich bin gerade in einer Online-Präsentation/);
-  assert.match(v.data.ssml, /<sub alias="Gülschen Jilmas">Gülşen Yılmaz<\/sub>/);
-  assert.match(v.data.ssml, /<break time="300ms"\/>/);
+  assert.match(v.data.gesprochen, /an Gülschen Jilmas, erreichbar unter/);
 
-  const p = await api('POST', '/api/app/probeanruf', {}, token);
-  assert.equal(p.data.sid, 'CA_PROBE');
-  const call = twilioAufrufe.find((a) => a.url.endsWith('/Accounts/AC123/Calls.json'));
-  const params = new URLSearchParams(String(call.init.body));
-  assert.equal(params.get('To'), '+491719998877');
-  assert.equal(params.get('From'), '+4930111222');
-  assert.match(params.get('Twiml'), /<Say voice="Polly\.Vicki-Neural"/);
+  const wav = await api('GET', '/api/app/vorschau.wav', undefined, token);
+  assert.equal(wav.typ, 'audio/wav');
+  assert.equal(leseWav(wav.data).rate, 8000);
 
-  const kaputt = await api('PUT', '/api/app/konfiguration', { status: { modus: 'quatsch' } }, token);
-  assert.equal(kaputt.status, 400);
+  assert.equal((await api('PUT', '/api/app/konfiguration', { status: { modus: 'quatsch' } }, token)).status, 400);
+});
+
+test('Verwaltung: Kurzansage für die sipgate-Mailbox und Stimmtest', async () => {
+  const m = await api('GET', '/api/mailbox-ansage.wav');
+  assert.equal(m.typ, 'audio/wav');
+  assert.ok(piperTexte.some((p) => p.text === 'Bitte sprechen Sie jetzt.'));
+  const t = await api('POST', '/api/tts/test', { text: 'Test' });
+  assert.equal(leseWav(t.data).rate, 8000);
 });
 
 test('Sync übernimmt nur erlaubte Felder', () => {
@@ -213,5 +278,5 @@ test('Vertrag mit der iPhone-App: von Swift erzeugte Übertragung wird korrekt a
   assert.match(v.data.text, /^Guten (Morgen|Tag|Abend), Herr Prof\. Dr\. Hoffmann! Sie sind verbunden mit dem Anschluss von Max Meyer, Kundenberater bei zollsoft, Ihrem Team für tomedo\./);
   assert.match(v.data.text, /Ich bin gerade in einer Online-Präsentation, voraussichtlich bis .*15 Uhr, und daher nicht erreichbar\./);
   assert.match(v.data.text, /In dringenden Fällen erreichen Sie Gülşen Yılmaz unter 0 1 7 1, 2 2 2 3 3 4 4\./);
-  assert.match(v.data.ssml, /<sub alias="Gülschen Jilmas">Gülşen Yılmaz<\/sub>/);
+  assert.match(v.data.gesprochen, /Gülschen Jilmas/);
 });

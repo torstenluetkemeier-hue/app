@@ -487,7 +487,7 @@ async function renderProfil() {
     <div class="card"><h3>Cloud-Anrufbeantworter</h3>
       <p class="hint">Das iPhone leitet bei Nichtannahme auf die Cloud-Nummer um (<code>**61*Nummer*11*20#</code>). Erkannt wird der Mitarbeiter an der Cloud-Nummer oder an der umleitenden Handynummer.</p>
       <div class="grid">
-        ${field('cloud.nummer', 'Cloud-Nummer (Twilio)', u.cloud?.nummer, 'placeholder="+49 …"')}
+        ${field('cloud.nummer', 'Cloud-Nummer (sipgate)', u.cloud?.nummer, 'placeholder="+49 …"')}
         ${field('cloud.mobilnummer', 'Diensthandy (leitet um)', u.cloud?.mobilnummer, 'placeholder="+49 171 …"')}
       </div>
       <div class="row" style="margin-top:10px">
@@ -608,21 +608,28 @@ async function renderIntegration() {
   const basis = t.status.publicUrl || 'https://<öffentliche-adresse>';
   const lexikon = structuredClone(state.config.lexikon || []);
   view.innerHTML = `
-    <h2>Cloud-Telefonie (Twilio)</h2>
-    <p class="lead">Die Diensthandys leiten bei Nichtannahme auf eine Twilio-Nummer um. Twilio fragt diesen Server, was zu sagen ist.</p>
+    <h2>Cloud-Telefonie</h2>
+    <p class="lead">Alles von deutschen Anbietern: Telefonie über <b>sipgate</b> (Düsseldorf), Sprachausgabe mit <b>Piper</b> auf dem eigenen Server. Die Diensthandys leiten bei Nichtannahme auf eine sipgate-Nummer um.</p>
     <div class="card" id="telCard">
-      <p class="${t.status.twilioBereit && t.status.publicUrl ? '' : 'error'}">${t.status.twilioBereit && t.status.publicUrl ? '✔ Bereit für Anrufe' : 'Noch nicht vollständig eingerichtet'}${t.status.transkription ? ' · Transkription aktiv' : ' · ohne Transkription (STT_URL nicht gesetzt)'}</p>
+      <p class="${t.status.ttsBereit && t.status.publicUrl ? '' : 'error'}">${t.status.ttsBereit && t.status.publicUrl ? '✔ Bereit für Anrufe' : 'Noch nicht vollständig eingerichtet (öffentliche Adresse und Piper-Adresse nötig)'}</p>
       <div class="grid">
         <label class="field">Öffentliche Server-Adresse<input name="publicUrl" value="${esc(t.publicUrl)}" placeholder="https://ab.example.de (oder PUBLIC_URL)"></label>
-        <label class="field">Twilio Account SID<input name="accountSid" value="${esc(t.twilio.accountSid)}" placeholder="AC… (oder TWILIO_ACCOUNT_SID)"></label>
-        <label class="field">Twilio Auth Token<input name="authToken" type="password" value="${esc(t.twilio.authToken)}" placeholder="(oder TWILIO_AUTH_TOKEN)"></label>
-        <label class="field">Stimme für alle<select name="stimme">${Object.entries(state.meta.stimmen).map(([k, v]) => `<option value="${esc(k)}" ${k === t.twilio.stimme ? 'selected' : ''}>${esc(v)}</option>`).join('')}</select></label>
-        <label class="field">Absender für Probeanrufe<input name="absenderNummer" value="${esc(t.twilio.absenderNummer)}" placeholder="+49 … (Twilio-Nummer)"></label>
+        <label class="field">Piper-Sprachausgabe (intern)<input name="piperUrl" value="${esc(t.tts.piperUrl)}" placeholder="http://piper:5000 (oder PIPER_URL)"></label>
+        <label class="field">Stimme für alle<select name="stimme">${Object.entries(state.meta.stimmen).map(([k, v]) => `<option value="${esc(k)}" ${k === t.tts.stimme ? 'selected' : ''}>${esc(v)}</option>`).join('')}</select></label>
       </div>
-      <p class="hint" style="margin-top:12px">In der Twilio-Konsole an jeder Nummer eintragen:<br>
-        „A call comes in“ → Webhook, POST: <code>${esc(basis)}/tw/voice</code><br>
-        „Call status changes“: <code>${esc(basis)}/tw/status</code></p>
-      <div class="row"><span class="spacer"></span><button class="btn primary" id="saveTel">Speichern</button></div>
+      <div class="row" style="margin-top:10px">
+        <label class="check"><input type="checkbox" name="ipaInline" ${t.tts.ipaInline ? 'checked' : ''}> IPA-Korrekturen direkt an Piper übergeben</label>
+        <label class="check"><input type="checkbox" name="mailbox" ${t.sipgate.mailbox ? 'checked' : ''}> Nach der Ansage an die sipgate-Mailbox übergeben</label>
+      </div>
+      <div class="row" style="margin-top:10px">
+        <input id="ttsText" value="Guten Tag, Frau Doktor Schneider! Sie sind verbunden mit zollsoft." style="flex:1;min-width:220px">
+        <button class="btn" id="ttsTest">▶ Stimme testen</button>
+      </div>
+      <p class="hint" style="margin-top:12px">In sipgate unter <i>Webhooks › URLs</i> für <b>eingehende Anrufe</b> eintragen (enthält einen geheimen Teil, nicht weitergeben):<br>
+        <code style="word-break:break-all">${esc(t.status.webhookUrl || basis + '/sg/<geheim>/anruf')}</code></p>
+      <p class="hint">Die sipgate-Mailbox spielt vor der Aufnahme ihre eigene Ansage. Damit danach nur noch „Bitte sprechen Sie jetzt“ kommt, diese Datei dort als Mailbox-Ansage hochladen:
+        <button class="btn small" id="mailboxAnsage">Kurzansage herunterladen</button></p>
+      <div class="row"><button class="btn danger" id="neuesGeheimnis">Webhook-Geheimnis erneuern</button><span class="spacer"></span><button class="btn primary" id="saveTel">Speichern</button></div>
     </div>
     <div class="card">
       <h3>Firmen-Wörterbuch (Aussprache)</h3>
@@ -647,13 +654,34 @@ async function renderIntegration() {
       <div class="row"><input id="testNr" placeholder="Rufnummer, z. B. 040 1234567" style="max-width:280px"><button class="btn" id="testCrm">Suchen</button></div>
       <div id="testOut"></div></div>`;
 
+  const wavAbspielen = async (url, init = {}) => {
+    const res = await fetch(url, { ...init, headers: { 'Content-Type': 'application/json', ...authHeader(), ...(init.headers || {}) } });
+    if (!res.ok) throw new Error((await res.json().catch(() => ({}))).fehler || `HTTP ${res.status}`);
+    const blob = await res.blob();
+    new Audio(URL.createObjectURL(blob)).play();
+    return blob;
+  };
   $('#saveTel').onclick = () => guarded(async () => {
-    const f = (n) => $(`#telCard [name=${n}]`).value.trim();
+    const f = (n) => $(`#telCard [name=${n}]`);
     state.config.telefonie = await api('PUT', '/api/telefonie', {
-      publicUrl: f('publicUrl'),
-      twilio: { accountSid: f('accountSid'), authToken: f('authToken'), stimme: f('stimme'), absenderNummer: f('absenderNummer') },
+      publicUrl: f('publicUrl').value.trim(),
+      tts: { piperUrl: f('piperUrl').value.trim(), stimme: f('stimme').value, ipaInline: f('ipaInline').checked },
+      sipgate: { mailbox: f('mailbox').checked },
     });
     toast('Telefonie gespeichert');
+    renderIntegration();
+  });
+  $('#ttsTest').onclick = () => guarded(() => wavAbspielen('/api/tts/test', { method: 'POST', body: JSON.stringify({ text: $('#ttsText').value }) }));
+  $('#mailboxAnsage').onclick = () => guarded(async () => {
+    const blob = await wavAbspielen('/api/mailbox-ansage.wav');
+    const a = document.createElement('a');
+    a.href = URL.createObjectURL(blob);
+    a.download = 'mailbox-kurzansage.wav';
+    a.click();
+  });
+  $('#neuesGeheimnis').onclick = () => guarded(async () => {
+    if (!confirm('Die alte Webhook-Adresse funktioniert danach nicht mehr und muss in sipgate ersetzt werden. Fortfahren?')) return;
+    state.config.telefonie = await api('PUT', '/api/telefonie', { sipgate: { neuesGeheimnis: true } });
     renderIntegration();
   });
   const drawLex = () => {
@@ -733,8 +761,8 @@ function drawSim(r) {
       <p class="meta">Status: ${esc(r.status.label)} (${esc(r.status.quelle)})</p></div>
     <div class="card"><h3>2 · Ansage</h3>
       <div class="speech">${esc(ansage)}</div>
-      ${r.ssml ? `<details style="margin-bottom:8px"><summary class="hint">So geht es an die Cloud-Stimme (SSML inkl. Aussprache-Korrekturen)</summary><pre class="hint" style="white-space:pre-wrap">${esc(r.ssml)}</pre></details>` : ''}
-      <div class="row"><button class="btn" id="simPlay">▶ Abspielen</button><button class="btn" id="simStop">■ Stopp</button></div></div>
+      ${r.gesprochen && r.gesprochen !== ansage ? `<details style="margin-bottom:8px"><summary class="hint">So wird es gesprochen (mit Aussprache-Korrekturen)</summary><p class="hint">${esc(r.gesprochen)}</p></details>` : ''}
+      <div class="row"><button class="btn" id="simPlay">▶ Browser-Stimme</button><button class="btn primary" id="simTelefon">▶ Wie am Telefon (Piper)</button><button class="btn" id="simStop">■ Stopp</button></div></div>
     ${direkt ? `<div class="card"><h3>3 · Weiterleitung</h3><p>Der Anruf wird direkt zu <b>${esc(direkt.ziel.name)}</b> (${esc(direkt.ziel.telefon)}) durchgestellt.</p></div>` : ''}
     ${auswahl ? `<div class="card"><h3>3 · Tastenwahl</h3><button class="btn" id="simDtmf">Taste ${esc(auswahl.taste)} drücken → ${esc(auswahl.ziel.name)}</button><p id="dtmfOut" class="meta"></p></div>` : ''}
     ${aufnahme ? `<div class="card"><h3>${auswahl ? '4' : '3'} · Nachricht hinterlassen</h3>
@@ -744,7 +772,16 @@ function drawSim(r) {
         <span class="spacer"></span><button class="btn primary" id="simSave">Auflegen &amp; Nachricht speichern</button></div>
       <div id="simSaved"></div></div>` : ''}`;
   $('#simPlay').onclick = () => speak(ansage);
-  $('#simStop').onclick = stopSpeaking;
+  let telefonAudio = null;
+  $('#simTelefon').onclick = () => guarded(async () => {
+    stopSpeaking();
+    const res = await fetch('/api/vorschau/audio', { method: 'POST', headers: { 'Content-Type': 'application/json', ...authHeader() },
+      body: JSON.stringify({ userId: state.user.id, from: r.anrufer.nummer, zeit: $('#simZeit')?.value || undefined }) });
+    if (!res.ok) throw new Error((await res.json().catch(() => ({}))).fehler || `HTTP ${res.status}`);
+    telefonAudio = new Audio(URL.createObjectURL(await res.blob()));
+    telefonAudio.play();
+  });
+  $('#simStop').onclick = () => { stopSpeaking(); telefonAudio?.pause(); };
   speak(ansage);
   if (auswahl) $('#simDtmf').onclick = () => guarded(async () => {
     const d = await api('POST', '/api/telephony/dtmf', { callId: r.callId, taste: auswahl.taste });
@@ -786,11 +823,10 @@ async function renderNachrichten() {
           <strong>${esc(name || k?.organisation || n.nummer || 'Rufnummer unterdrückt')}</strong>
           ${n.prioritaet === 'hoch' ? '<span class="badge urlaub">hohe Priorität</span>' : ''}
           <div class="meta">${esc(k?.organisation && name ? k.organisation + ' · ' : '')}${esc(n.nummer || '')} · ${new Date(n.zeit).toLocaleString('de-DE')} · Status damals: ${esc(n.status)}</div>
-          ${n.transkript ? `<p style="margin:6px 0 0">„${esc(n.transkript)}“</p>` : n.ohneNachricht ? '<p class="hint">Anruf ohne Nachricht – bitte zurückrufen</p>' : n.aufnahmeUrl ? '<p class="hint">Sprachnachricht (ohne Transkript)</p>' : '<p class="hint">(keine Nachricht gesprochen)</p>'}
+          ${n.transkript ? `<p style="margin:6px 0 0">„${esc(n.transkript)}“</p>` : n.mailbox ? '<p class="hint">An die sipgate-Mailbox übergeben – Nachricht dort abhören</p>' : n.ohneNachricht ? '<p class="hint">Aufgelegt ohne Nachricht – bitte zurückrufen</p>' : '<p class="hint">(keine Nachricht gesprochen)</p>'}
           ${n.aufgabe?.id ? `<div class="meta">Aufgabe ${esc(n.aufgabe.id)} in ${esc(n.aufgabe.system)}</div>` : ''}
         </div>
         <div class="row">
-          ${n.aufnahmeUrl ? `<button class="btn small" data-audio="${esc(n.id)}">▶ Anhören</button>` : ''}
           ${n.nummer ? `<a class="btn small" href="tel:${esc(n.nummer)}" style="text-decoration:none">📞 Zurückrufen</a>` : ''}
           <button class="btn small" data-done="${esc(n.id)}">${n.erledigt ? 'Wieder öffnen' : 'Erledigt'}</button>
           <button class="btn small danger" data-mdel="${esc(n.id)}">Löschen</button>
@@ -800,12 +836,6 @@ async function renderNachrichten() {
     const n = state.nachrichten.find((x) => x.id === b.dataset.done);
     await api('PATCH', '/api/nachrichten/' + n.id, { erledigt: !n.erledigt });
     renderNachrichten();
-  })));
-  $$('[data-audio]').forEach((b) => (b.onclick = () => guarded(async () => {
-    // Aufnahme über den Server laden (Twilio-Zugangsdaten bleiben auf dem Server)
-    const res = await fetch(`/api/nachrichten/${b.dataset.audio}/audio`, { headers: authHeader() });
-    if (!res.ok) throw new Error((await res.json().catch(() => ({}))).fehler || `HTTP ${res.status}`);
-    new Audio(URL.createObjectURL(await res.blob())).play();
   })));
   $$('[data-mdel]').forEach((b) => (b.onclick = () => guarded(async () => {
     await api('DELETE', '/api/nachrichten/' + b.dataset.mdel);

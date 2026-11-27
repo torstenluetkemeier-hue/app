@@ -17,15 +17,15 @@ Die App erzeugt die einheitliche zollsoft-Ansage mit einer angenehmen Stimme und
 
 ## Cloud-Anrufbeantworter (empfohlen)
 
-Unter *Einstellungen › Cloud-Anrufbeantworter*:
+Läuft komplett bei deutschen Anbietern: sipgate für die Telefonie, Piper-Stimme auf dem zollsoft-Server. Einstellen unter *Einstellungen › Cloud-Anrufbeantworter*:
 
 1. **Verbinden:** Server-Adresse und persönlichen Zugangsschlüssel eintragen. Den Schlüssel erzeugt die Verwaltung, die App speichert ihn im Schlüsselbund.
-2. **Rufumleitung:** Die App zeigt die passenden Codes für Nichtannahme (mit wählbarer Klingeldauer), besetzt und nicht erreichbar, jeweils mit Kopier-Knopf. iOS erlaubt Apps nicht, `*`/`#`-Codes selbst zu wählen, deshalb in der Telefon-App einfügen.
+2. **Rufumleitung:** Die App zeigt die Codes für Nichtannahme (mit wählbarer Klingeldauer), besetzt und nicht erreichbar, jeweils mit Kopier-Knopf und Ziel sipgate-Nummer. iOS erlaubt Apps nicht, `*`/`#`-Codes selbst zu wählen, deshalb in der Telefon-App einfügen.
 3. **Aktivieren:** Ab dann überträgt die App jede Änderung automatisch, etwa 1,5 Sekunden nach der letzten Eingabe. Die Mailbox-Erinnerungen entfallen.
-4. **Testen:** Textvorschau, Vorschau „als bekannter Kunde“ und **Probeanruf** mit der Cloud-Stimme aufs eigene Handy.
-5. **Nachrichten:** Eigener Tab mit erkanntem Anrufer, Transkript (falls auf dem Server eingerichtet), Anhören, Zurückrufen und Erledigt-Wischgeste.
+4. **Testen:** *Wie am Telefon anhören* spielt genau die Datei ab, die Anrufer hören (Cloud-Stimme, 8 kHz), auch als Variante „bekannter Kunde“.
+5. **Anrufe:** Eigener Tab mit erkanntem Anrufer, Hinweis „Nachricht in der sipgate-Mailbox“, Zurückrufen und Erledigt-Wischgeste. Die Sprachnachricht selbst hörst du in der sipgate-App oder per E-Mail von sipgate.
 
-Die Cloud-Stimme ist eine andere als die iPhone-Stimme. Korrekturen in Lautschrift oder IPA werden übertragen und wirken in beiden.
+Die Cloud-Stimme (Piper) ist eine andere als die iPhone-Stimme. Korrekturen in Lautschrift oder IPA werden übertragen und wirken in beiden. Schwierige Namen deshalb einmal mit *Wie am Telefon anhören* gegenhören.
 
 ## Aussprache-Prüfung
 
