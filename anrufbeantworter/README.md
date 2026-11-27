@@ -1,8 +1,19 @@
-# zollsoft Anrufbeantworter (Prototyp)
+# zollsoft Anrufbeantworter
 
-Ein intelligenter, stark konfigurierbarer Anrufbeantworter. Er erkennt Anrufer über **Qto** (künftig **ZSWork**), begrüßt sie mit Namen, nennt Grund und Dauer der Abwesenheit samt Vertretung und legt Rückrufe als Aufgabe an.
+Dieser Ordner enthält zwei Teile:
 
-Das Fachkonzept mit Architektur, HiProCall-Vergleich, Datenschutz und Roadmap steht in **[KONZEPT.md](KONZEPT.md)**.
+| Teil | Ordner | Zweck |
+|---|---|---|
+| **iPhone-App** *(Hauptprodukt)* | [`ios/`](ios/README.md) | Einheitliche Ansage mit angenehmer Stimme, Status/Urlaub/Vertretung, **Aussprache-Prüfung mit freiwilliger Korrektur**, Export für die Mailbox. Läuft nur auf dem iPhone, ohne Server und ohne Firmen-Telefonanlage. |
+| Server-Prototyp *(optionale Ausbaustufe)* | `src/`, `public/` | Cloud-Anrufbeantworter per Rufumleitung: automatischer Statuswechsel, Begrüßung erkannter Anrufer mit Namen über **Qto**/**ZSWork**, Rückruf-Aufgaben. |
+
+Das Fachkonzept steht in **[KONZEPT.md](KONZEPT.md)**.
+
+---
+
+# Server-Prototyp (optionale Ausbaustufe)
+
+Ein Anrufbeantworter-Dienst, der Anrufer über **Qto** (künftig **ZSWork**) erkennt, sie mit Namen begrüßt, Grund und Dauer der Abwesenheit samt Vertretung nennt und Rückrufe als Aufgabe anlegt.
 
 ## Starten
 

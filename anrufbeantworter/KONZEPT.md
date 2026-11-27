@@ -1,6 +1,21 @@
 # Konzept: Intelligenter Anrufbeantworter für zollsoft
 
-Stand: 27.11.2026 · Status: Vorschlag + Prototyp (v0.1)
+Stand: 27.11.2026 · Status: Vorschlag + Prototyp (v0.2)
+
+## 0. Aktuelle Ausrichtung (v0.2): iPhone-App ohne Telefonanlage
+
+Nach Abstimmung liegt der Schwerpunkt auf einer **reinen iPhone-App**, ohne Anbindung an die Firmen-Telefonanlage. Im Mittelpunkt stehen **die Ansage selbst**, **eine angenehme, einheitliche Stimme** und **die korrekte Aussprache auch schwieriger Namen** (Testroutinen, Abfragen, freiwillige Korrekturen in Lautschrift oder IPA). Umsetzung: [`ios/`](ios/README.md).
+
+**Technische Grenze:** iOS erlaubt keiner App, Anrufe selbst anzunehmen. Daraus folgt:
+
+| Ziel | Mit reiner iPhone-App | Mit optionaler Cloud-Ausbaustufe (Rufumleitung) |
+|---|---|---|
+| Einheitliche Ansage, angenehme Stimme, korrekte Aussprache | ✅ | ✅ |
+| Status, Urlaub, Termine, Vertretung | ✅ Ansage wird erzeugt, Wechsel per Erinnerung und einmaligem Einspielen in die Mailbox | ✅ wechselt automatisch |
+| Anrufer mit Namen begrüßen (Qto/ZSWork) | ❌ die Mailbox spielt für alle dieselbe Ansage | ✅ |
+| Rückruf-Aufgabe, Transkript | ❌ (Mailbox des Netzbetreibers) | ✅ |
+
+Die Abschnitte ab 1 beschreiben die Cloud-Ausbaustufe, die unabhängig von der Firmen-Telefonanlage per **bedingter Rufumleitung** des iPhones funktioniert (Variante C). Der Server-Prototyp dafür liegt in `src/`. Das Aussprache-Wörterbuch der App kann als SSML direkt an Cloud-Stimmen übergeben werden.
 
 ## 1. Ziel
 

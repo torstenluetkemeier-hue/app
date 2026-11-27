@@ -1,0 +1,55 @@
+# Xcode-Projekt wird mit XcodeGen erzeugt:  brew install xcodegen && xcodegen generate
+name: Anrufbeantworter
+options:
+  bundleIdPrefix: de.zollsoft
+  deploymentTarget:
+    iOS: "17.0"
+  createIntermediateGroups: true
+  developmentLanguage: de
+
+packages:
+  AnrufbeantworterCore:
+    path: AnrufbeantworterCore
+
+settings:
+  base:
+    SWIFT_VERSION: "5.0"
+    MARKETING_VERSION: "0.2.0"
+    CURRENT_PROJECT_VERSION: "1"
+
+targets:
+  Anrufbeantworter:
+    type: application
+    platform: iOS
+    sources:
+      - path: App
+    dependencies:
+      - package: AnrufbeantworterCore
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: de.zollsoft.anrufbeantworter
+        TARGETED_DEVICE_FAMILY: "1,2"
+        ASSETCATALOG_COMPILER_APPICON_NAME: AppIcon
+        ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME: AccentColor
+        GENERATE_INFOPLIST_FILE: NO
+        INFOPLIST_FILE: App/Info.plist
+        # Eigenes Apple-Developer-Team hier eintragen (oder in Xcode unter "Signing & Capabilities" wählen)
+        DEVELOPMENT_TEAM: ""
+        CODE_SIGN_STYLE: Automatic
+
+  AnrufbeantworterCoreTests:
+    type: bundle.unit-test
+    platform: iOS
+    sources:
+      - path: AnrufbeantworterCore/Tests/AnrufbeantworterCoreTests
+    dependencies:
+      - package: AnrufbeantworterCore
+
+schemes:
+  Anrufbeantworter:
+    build:
+      targets:
+        Anrufbeantworter: all
+    test:
+      targets:
+        - AnrufbeantworterCoreTests
