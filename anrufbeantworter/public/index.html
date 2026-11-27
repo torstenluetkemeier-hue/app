@@ -1,0 +1,42 @@
+<!doctype html>
+<html lang="de">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Anrufbeantworter</title>
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+  <header class="top">
+    <div class="brand">
+      <span class="logo" aria-hidden="true">☎</span>
+      <div>
+        <strong>Anrufbeantworter</strong>
+        <small>Prototyp · Anruferkennung über Qto / ZSWork</small>
+      </div>
+    </div>
+    <div class="top-right">
+      <span id="statusBadge" class="badge">…</span>
+      <label class="user-select">
+        <span class="sr">Mitarbeiter</span>
+        <select id="userSelect"></select>
+      </label>
+    </div>
+  </header>
+
+  <nav class="tabs" id="tabs">
+    <button data-tab="status" class="active">Status</button>
+    <button data-tab="kalender">Kalender</button>
+    <button data-tab="ansagen">Ansagen</button>
+    <button data-tab="regeln">Anrufer-Regeln</button>
+    <button data-tab="profil">Profil &amp; Zeiten</button>
+    <button data-tab="integration">Qto / ZSWork</button>
+    <button data-tab="simulator">Simulator</button>
+    <button data-tab="nachrichten">Nachrichten <span id="msgCount" class="count"></span></button>
+  </nav>
+
+  <main id="view"></main>
+  <div id="toast" class="toast" role="status" aria-live="polite"></div>
+  <script type="module" src="app.js"></script>
+</body>
+</html>

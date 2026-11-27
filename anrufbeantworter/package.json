@@ -1,0 +1,12 @@
+{
+  "name": "zollsoft-anrufbeantworter",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Prototyp: intelligenter Anrufbeantworter mit Anruferkennung über Qto/ZSWork",
+  "type": "module",
+  "engines": { "node": ">=22" },
+  "scripts": {
+    "start": "node src/server.js",
+    "test": "node --test test/*.test.js"
+  }
+}

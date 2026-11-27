@@ -60,3 +60,7 @@ Die GitHub-Actions-CI (`.github/workflows/ci.yml`) führt die Tests aus und baut
 - **HealthKit** (Wasser/Gewicht in Apple Health schreiben) ist noch nicht angebunden.
 
 > Wochenleicht ersetzt keine ärztliche Beratung. Bei Vorerkrankungen, in der Schwangerschaft oder bei Essstörungen bitte vor einer Diät ärztlich abklären lassen.
+
+## Weiteres Projekt in diesem Repository
+
+`anrufbeantworter/`: Prototyp eines intelligenten Anrufbeantworters für zollsoft mit Anruferkennung über Qto/ZSWork. Siehe [anrufbeantworter/README.md](anrufbeantworter/README.md) und [anrufbeantworter/KONZEPT.md](anrufbeantworter/KONZEPT.md).
