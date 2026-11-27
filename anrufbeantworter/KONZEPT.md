@@ -1,6 +1,6 @@
 # Konzept: Intelligenter Anrufbeantworter für zollsoft
 
-Stand: 27.11.2026 · Status: Vorschlag + Prototyp (v0.2)
+Stand: 27.11.2026 · Status: Vorschlag + Prototyp (v0.3)
 
 ## 0. Aktuelle Ausrichtung (v0.2): iPhone-App ohne Telefonanlage
 
@@ -10,12 +10,16 @@ Nach Abstimmung liegt der Schwerpunkt auf einer **reinen iPhone-App**, ohne Anbi
 
 | Ziel | Mit reiner iPhone-App | Mit optionaler Cloud-Ausbaustufe (Rufumleitung) |
 |---|---|---|
-| Einheitliche Ansage, angenehme Stimme, korrekte Aussprache | ✅ | ✅ |
+| Einheitliche Ansage, angenehme Stimme, korrekte Aussprache | ✅ | ✅ (Firmen- und persönliches Wörterbuch als SSML) |
 | Status, Urlaub, Termine, Vertretung | ✅ Ansage wird erzeugt, Wechsel per Erinnerung und einmaligem Einspielen in die Mailbox | ✅ wechselt automatisch |
 | Anrufer mit Namen begrüßen (Qto/ZSWork) | ❌ die Mailbox spielt für alle dieselbe Ansage | ✅ |
 | Rückruf-Aufgabe, Transkript | ❌ (Mailbox des Netzbetreibers) | ✅ |
 
-Die Abschnitte ab 1 beschreiben die Cloud-Ausbaustufe, die unabhängig von der Firmen-Telefonanlage per **bedingter Rufumleitung** des iPhones funktioniert (Variante C). Der Server-Prototyp dafür liegt in `src/`. Das Aussprache-Wörterbuch der App kann als SSML direkt an Cloud-Stimmen übergeben werden.
+**Stand v0.3:** Die Cloud-Ausbaustufe ist gebaut. Das iPhone leitet per **bedingter Rufumleitung** (`**61*…*11*20#`, `**67*…#`, `**62*…#`) auf eine Twilio-Nummer um, der Server antwortet mit einer neuralen deutschen Stimme. Die App überträgt Status, Kalender, Texte und Aussprache-Wörterbuch automatisch; Nachrichten erscheinen in der App. Einrichtung: [README.md](README.md).
+
+**Zum Vergleich mit HiProCall:** HiProCall arbeitet mit dem Netzbetreiber zusammen und lädt fertige Ansagen direkt in dessen Mailbox. Das ist bequem, bleibt aber eine feste Ansage für alle Anrufer. Unser Weg über die Rufumleitung braucht keine Partnerschaft mit einem Netzbetreiber und erzeugt die Ansage bei jedem Anruf neu. Nur so sind Begrüßung mit Namen, automatischer Statuswechsel und Tastenwahl zur Vertretung möglich.
+
+Die Abschnitte ab 1 beschreiben die ursprüngliche Variante mit Firmen-Telefonanlage. Architektur, Datenschutz und Qto-Anbindung gelten unverändert auch für die Cloud-Variante.
 
 ## 1. Ziel
 

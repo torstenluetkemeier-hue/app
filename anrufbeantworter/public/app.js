@@ -7,9 +7,20 @@ const view = $('#view');
 
 const esc = (v) => String(v ?? '').replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
 
-async function api(method, url, body) {
-  const res = await fetch(url, { method, headers: { 'Content-Type': 'application/json' }, body: body === undefined ? undefined : JSON.stringify(body) });
+// Admin-Zugang (nur nötig, wenn der Server mit ADMIN_TOKEN läuft); nur für diese Browser-Sitzung gemerkt.
+const adminToken = () => { try { return sessionStorage.getItem('ab.admin') || ''; } catch { return ''; } };
+const authHeader = () => (adminToken() ? { Authorization: 'Bearer ' + adminToken() } : {});
+
+async function api(method, url, body, wiederholt = false) {
+  const res = await fetch(url, { method, headers: { 'Content-Type': 'application/json', ...authHeader() }, body: body === undefined ? undefined : JSON.stringify(body) });
   const data = await res.json().catch(() => ({}));
+  if (res.status === 401 && !wiederholt) {
+    const t = prompt('Admin-Zugang erforderlich. Bitte ADMIN_TOKEN eingeben:');
+    if (t) {
+      try { sessionStorage.setItem('ab.admin', t); } catch { /* egal */ }
+      return api(method, url, body, true);
+    }
+  }
   if (!res.ok) throw new Error(data.fehler || `HTTP ${res.status}`);
   return data;
 }
@@ -473,6 +484,20 @@ async function renderProfil() {
       ${field('profil.durchwahl', 'Meine Rufnummer / Durchwahl', u.profil.durchwahl)}
       ${field('profil.email', 'E-Mail (Benachrichtigung)', u.profil.email, 'type="email"')}
     </div></div>
+    <div class="card"><h3>Cloud-Anrufbeantworter</h3>
+      <p class="hint">Das iPhone leitet bei Nichtannahme auf die Cloud-Nummer um (<code>**61*Nummer*11*20#</code>). Erkannt wird der Mitarbeiter an der Cloud-Nummer oder an der umleitenden Handynummer.</p>
+      <div class="grid">
+        ${field('cloud.nummer', 'Cloud-Nummer (Twilio)', u.cloud?.nummer, 'placeholder="+49 …"')}
+        ${field('cloud.mobilnummer', 'Diensthandy (leitet um)', u.cloud?.mobilnummer, 'placeholder="+49 171 …"')}
+      </div>
+      <div class="row" style="margin-top:10px">
+        <span class="meta">iPhone-App: ${u.appZugang ? '<b>Zugang eingerichtet</b>' : 'kein Zugang'}${u.appSync?.zeit ? ` · zuletzt synchronisiert ${esc(new Date(u.appSync.zeit).toLocaleString('de-DE'))}` : ''}</span>
+        <span class="spacer"></span>
+        <button class="btn" type="button" id="appZugang">${u.appZugang ? 'Neuen Zugang erzeugen' : 'App-Zugang erzeugen'}</button>
+        ${u.appZugang ? '<button class="btn danger" type="button" id="appZugangWeg">Sperren</button>' : ''}
+      </div>
+      <div id="appZugangOut"></div>
+    </div>
     <div class="card"><h3>Unternehmen</h3><div class="grid">
       ${field('firma.name', 'Firma', u.firma.name)}
       ${field('firma.produkt', 'Produkt', u.firma.produkt)}
@@ -519,6 +544,18 @@ async function renderProfil() {
     const cur = $('#stdVt').value || u.standardVertretungId;
     $('#stdVt').innerHTML = '<option value="">– keine –</option>' + vertretungen.map((v) => `<option value="${esc(v.id)}" ${v.id === cur ? 'selected' : ''}>${esc(v.name || '(ohne Namen)')}</option>`).join('');
   };
+  $('#appZugang').onclick = () => guarded(async () => {
+    if (u.appZugang && !confirm('Der bisherige Zugang wird ungültig. Fortfahren?')) return;
+    const r = await api('POST', `/api/users/${u.id}/app-zugang`);
+    u.appZugang = true;
+    $('#appZugangOut').innerHTML = `<div class="speech"><b>Einmalig angezeigt</b>, bitte in der iPhone-App unter Einstellungen › Cloud-Anrufbeantworter eintragen:<br>
+      Server: <code>${esc(r.serverUrl || location.origin)}</code><br>Zugangsschlüssel: <code style="word-break:break-all">${esc(r.token)}</code></div>`;
+  });
+  if ($('#appZugangWeg')) $('#appZugangWeg').onclick = () => guarded(async () => {
+    await api('DELETE', `/api/users/${u.id}/app-zugang`);
+    toast('App-Zugang gesperrt');
+    await load(u.id);
+  });
   $('#addVt').onclick = () => { vertretungen.push({ id: 'v-' + Date.now().toString(36), name: '', telefon: '', email: '' }); drawVt(); };
   drawVt();
 
@@ -536,6 +573,7 @@ async function renderProfil() {
     await saveUser({
       profil: Object.fromEntries(['vorname', 'nachname', 'funktion', 'team', 'durchwahl', 'email'].map((k) => [k, f('profil.' + k).value.trim()])),
       firma: Object.fromEntries(['name', 'produkt', 'support'].map((k) => [k, f('firma.' + k).value.trim()])),
+      cloud: { nummer: f('cloud.nummer').value.trim(), mobilnummer: f('cloud.mobilnummer').value.trim() },
       geschaeftszeiten,
       vertretungen: vertretungen.filter((v) => v.name.trim()),
       standardVertretungId: f('standardVertretungId').value,
@@ -566,8 +604,33 @@ async function renderIntegration() {
       <label class="field">Pfad Rufnummernsuche<input name="lookupPath" value="${esc(c[k].lookupPath)}"></label>
       <label class="field">Pfad Rückruf-Aufgabe<input name="taskPath" value="${esc(c[k].taskPath)}"></label>
     </div></div>`;
+  const t = state.config.telefonie;
+  const basis = t.status.publicUrl || 'https://<öffentliche-adresse>';
+  const lexikon = structuredClone(state.config.lexikon || []);
   view.innerHTML = `
-    <h2>Anbindung Qto / ZSWork</h2>
+    <h2>Cloud-Telefonie (Twilio)</h2>
+    <p class="lead">Die Diensthandys leiten bei Nichtannahme auf eine Twilio-Nummer um. Twilio fragt diesen Server, was zu sagen ist.</p>
+    <div class="card" id="telCard">
+      <p class="${t.status.twilioBereit && t.status.publicUrl ? '' : 'error'}">${t.status.twilioBereit && t.status.publicUrl ? '✔ Bereit für Anrufe' : 'Noch nicht vollständig eingerichtet'}${t.status.transkription ? ' · Transkription aktiv' : ' · ohne Transkription (STT_URL nicht gesetzt)'}</p>
+      <div class="grid">
+        <label class="field">Öffentliche Server-Adresse<input name="publicUrl" value="${esc(t.publicUrl)}" placeholder="https://ab.example.de (oder PUBLIC_URL)"></label>
+        <label class="field">Twilio Account SID<input name="accountSid" value="${esc(t.twilio.accountSid)}" placeholder="AC… (oder TWILIO_ACCOUNT_SID)"></label>
+        <label class="field">Twilio Auth Token<input name="authToken" type="password" value="${esc(t.twilio.authToken)}" placeholder="(oder TWILIO_AUTH_TOKEN)"></label>
+        <label class="field">Stimme für alle<select name="stimme">${Object.entries(state.meta.stimmen).map(([k, v]) => `<option value="${esc(k)}" ${k === t.twilio.stimme ? 'selected' : ''}>${esc(v)}</option>`).join('')}</select></label>
+        <label class="field">Absender für Probeanrufe<input name="absenderNummer" value="${esc(t.twilio.absenderNummer)}" placeholder="+49 … (Twilio-Nummer)"></label>
+      </div>
+      <p class="hint" style="margin-top:12px">In der Twilio-Konsole an jeder Nummer eintragen:<br>
+        „A call comes in“ → Webhook, POST: <code>${esc(basis)}/tw/voice</code><br>
+        „Call status changes“: <code>${esc(basis)}/tw/status</code></p>
+      <div class="row"><span class="spacer"></span><button class="btn primary" id="saveTel">Speichern</button></div>
+    </div>
+    <div class="card">
+      <h3>Firmen-Wörterbuch (Aussprache)</h3>
+      <p class="hint">Gilt für alle Mitarbeiter, z. B. für Kundennamen aus Qto. Persönliche Einträge aus der iPhone-App haben Vorrang. Lautschrift: so schreiben, wie es klingen soll. IPA ist optional und hat Vorrang.</p>
+      <div id="lexList"></div>
+      <div class="row" style="margin-top:8px"><button class="btn" id="addLex">+ Eintrag</button><span class="spacer"></span><button class="btn primary" id="saveLex">Speichern</button></div>
+    </div>
+    <h2 style="margin-top:28px">Anbindung Qto / ZSWork</h2>
     <p class="lead">Über diese Schnittstelle wird die Rufnummer des Anrufers einem Kontakt (Praxis, Interessent, Kollege) zugeordnet, und Rückrufe landen als Aufgabe im System.</p>
     <div class="card"><div class="grid">
       <label class="field">Aktive Datenquelle<select id="adapter">
@@ -584,6 +647,31 @@ async function renderIntegration() {
       <div class="row"><input id="testNr" placeholder="Rufnummer, z. B. 040 1234567" style="max-width:280px"><button class="btn" id="testCrm">Suchen</button></div>
       <div id="testOut"></div></div>`;
 
+  $('#saveTel').onclick = () => guarded(async () => {
+    const f = (n) => $(`#telCard [name=${n}]`).value.trim();
+    state.config.telefonie = await api('PUT', '/api/telefonie', {
+      publicUrl: f('publicUrl'),
+      twilio: { accountSid: f('accountSid'), authToken: f('authToken'), stimme: f('stimme'), absenderNummer: f('absenderNummer') },
+    });
+    toast('Telefonie gespeichert');
+    renderIntegration();
+  });
+  const drawLex = () => {
+    $('#lexList').innerHTML = lexikon.map((e, i) => `
+      <div class="row" style="margin-bottom:6px" data-li="${i}">
+        <input data-k="schreibweise" value="${esc(e.schreibweise)}" placeholder="Schreibweise" style="flex:2;min-width:140px">
+        <input data-k="lautschrift" value="${esc(e.lautschrift)}" placeholder="Lautschrift" style="flex:2;min-width:140px">
+        <input data-k="ipa" value="${esc(e.ipa)}" placeholder="IPA (optional)" style="flex:2;min-width:120px">
+        <button class="btn small danger" data-lrm="${i}">✕</button></div>`).join('') || '<p class="hint">Noch keine Einträge.</p>';
+    $$('[data-li] input').forEach((inp) => (inp.oninput = () => { lexikon[inp.parentElement.dataset.li][inp.dataset.k] = inp.value; }));
+    $$('[data-lrm]').forEach((b) => (b.onclick = () => { lexikon.splice(+b.dataset.lrm, 1); drawLex(); }));
+  };
+  drawLex();
+  $('#addLex').onclick = () => { lexikon.push({ schreibweise: '', lautschrift: '', ipa: '' }); drawLex(); };
+  $('#saveLex').onclick = () => guarded(async () => {
+    state.config.lexikon = await api('PUT', '/api/lexikon', { lexikon });
+    toast('Wörterbuch gespeichert');
+  });
   $('#saveCrm').onclick = () => guarded(async () => {
     const body = { adapter: $('#adapter').value, timeoutMs: Number($('#timeoutMs').value), cacheMinuten: Number($('#cacheMinuten').value) };
     for (const el of $$('[data-sys]')) body[el.dataset.sys] = Object.fromEntries($$('input', el).map((i) => [i.name, i.value.trim()]));
@@ -645,6 +733,7 @@ function drawSim(r) {
       <p class="meta">Status: ${esc(r.status.label)} (${esc(r.status.quelle)})</p></div>
     <div class="card"><h3>2 · Ansage</h3>
       <div class="speech">${esc(ansage)}</div>
+      ${r.ssml ? `<details style="margin-bottom:8px"><summary class="hint">So geht es an die Cloud-Stimme (SSML inkl. Aussprache-Korrekturen)</summary><pre class="hint" style="white-space:pre-wrap">${esc(r.ssml)}</pre></details>` : ''}
       <div class="row"><button class="btn" id="simPlay">▶ Abspielen</button><button class="btn" id="simStop">■ Stopp</button></div></div>
     ${direkt ? `<div class="card"><h3>3 · Weiterleitung</h3><p>Der Anruf wird direkt zu <b>${esc(direkt.ziel.name)}</b> (${esc(direkt.ziel.telefon)}) durchgestellt.</p></div>` : ''}
     ${auswahl ? `<div class="card"><h3>3 · Tastenwahl</h3><button class="btn" id="simDtmf">Taste ${esc(auswahl.taste)} drücken → ${esc(auswahl.ziel.name)}</button><p id="dtmfOut" class="meta"></p></div>` : ''}
@@ -697,10 +786,11 @@ async function renderNachrichten() {
           <strong>${esc(name || k?.organisation || n.nummer || 'Rufnummer unterdrückt')}</strong>
           ${n.prioritaet === 'hoch' ? '<span class="badge urlaub">hohe Priorität</span>' : ''}
           <div class="meta">${esc(k?.organisation && name ? k.organisation + ' · ' : '')}${esc(n.nummer || '')} · ${new Date(n.zeit).toLocaleString('de-DE')} · Status damals: ${esc(n.status)}</div>
-          ${n.transkript ? `<p style="margin:6px 0 0">„${esc(n.transkript)}“</p>` : '<p class="hint">(keine Nachricht gesprochen)</p>'}
+          ${n.transkript ? `<p style="margin:6px 0 0">„${esc(n.transkript)}“</p>` : n.ohneNachricht ? '<p class="hint">Anruf ohne Nachricht – bitte zurückrufen</p>' : n.aufnahmeUrl ? '<p class="hint">Sprachnachricht (ohne Transkript)</p>' : '<p class="hint">(keine Nachricht gesprochen)</p>'}
           ${n.aufgabe?.id ? `<div class="meta">Aufgabe ${esc(n.aufgabe.id)} in ${esc(n.aufgabe.system)}</div>` : ''}
         </div>
         <div class="row">
+          ${n.aufnahmeUrl ? `<button class="btn small" data-audio="${esc(n.id)}">▶ Anhören</button>` : ''}
           ${n.nummer ? `<a class="btn small" href="tel:${esc(n.nummer)}" style="text-decoration:none">📞 Zurückrufen</a>` : ''}
           <button class="btn small" data-done="${esc(n.id)}">${n.erledigt ? 'Wieder öffnen' : 'Erledigt'}</button>
           <button class="btn small danger" data-mdel="${esc(n.id)}">Löschen</button>
@@ -710,6 +800,12 @@ async function renderNachrichten() {
     const n = state.nachrichten.find((x) => x.id === b.dataset.done);
     await api('PATCH', '/api/nachrichten/' + n.id, { erledigt: !n.erledigt });
     renderNachrichten();
+  })));
+  $$('[data-audio]').forEach((b) => (b.onclick = () => guarded(async () => {
+    // Aufnahme über den Server laden (Twilio-Zugangsdaten bleiben auf dem Server)
+    const res = await fetch(`/api/nachrichten/${b.dataset.audio}/audio`, { headers: authHeader() });
+    if (!res.ok) throw new Error((await res.json().catch(() => ({}))).fehler || `HTTP ${res.status}`);
+    new Audio(URL.createObjectURL(await res.blob())).play();
   })));
   $$('[data-mdel]').forEach((b) => (b.onclick = () => guarded(async () => {
     await api('DELETE', '/api/nachrichten/' + b.dataset.mdel);

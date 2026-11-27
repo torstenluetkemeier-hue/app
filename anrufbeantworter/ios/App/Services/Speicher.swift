@@ -29,6 +29,10 @@ enum Erinnerungen {
         _ = try? await UNUserNotificationCenter.current().requestAuthorization(options: [.alert, .sound])
     }
 
+    static func alleEntfernen() {
+        UNUserNotificationCenter.current().removeAllPendingNotificationRequests()
+    }
+
     static func planen(_ k: AppKonfiguration, jetzt: Date = Date()) {
         let center = UNUserNotificationCenter.current()
         center.removeAllPendingNotificationRequests()

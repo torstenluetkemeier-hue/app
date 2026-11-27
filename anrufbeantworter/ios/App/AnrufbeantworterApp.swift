@@ -14,7 +14,7 @@ struct AnrufbeantworterApp: App {
     }
 }
 
-enum Tab: Hashable { case ansage, status, aussprache, einstellungen }
+enum Tab: Hashable { case ansage, status, aussprache, nachrichten, einstellungen }
 
 struct RootView: View {
     @Environment(AppModel.self) private var model
@@ -32,6 +32,12 @@ struct RootView: View {
                 .tabItem { Label("Aussprache", systemImage: "character.bubble") }
                 .badge(model.offeneNamensHinweise.count)
                 .tag(Tab.aussprache)
+            if model.konfig.cloudAktiv {
+                NavigationStack { NachrichtenView() }
+                    .tabItem { Label("Nachrichten", systemImage: "tray") }
+                    .badge(model.cloud.nachrichten.filter { !$0.erledigt }.count)
+                    .tag(Tab.nachrichten)
+            }
             NavigationStack { EinstellungenView() }
                 .tabItem { Label("Einstellungen", systemImage: "gearshape") }
                 .tag(Tab.einstellungen)

@@ -7,9 +7,11 @@ final class AppModel {
     var konfig: AppKonfiguration {
         didSet {
             speicher.speichern(konfig)
-            if konfig.status != oldValue.status || konfig.kalender != oldValue.kalender {
-                Erinnerungen.planen(konfig)
+            if konfig.status != oldValue.status || konfig.kalender != oldValue.kalender || konfig.cloudAktiv != oldValue.cloudAktiv {
+                // Mit Cloud-Anrufbeantworter wechselt die Ansage selbst, Erinnerungen sind dann überflüssig.
+                if konfig.cloudAktiv { Erinnerungen.alleEntfernen() } else { Erinnerungen.planen(konfig) }
             }
+            cloud.planeUebertragung(konfig)
         }
     }
 
@@ -19,6 +21,7 @@ final class AppModel {
     var pruefAuftrag: [String]?
 
     let sprecher = Sprecher()
+    let cloud = CloudDienst()
 
     @ObservationIgnored private let speicher = Speicher()
     /// Stand, gegen den neue Namen erkannt werden
@@ -28,6 +31,10 @@ final class AppModel {
         let k = Speicher().laden() ?? AppKonfiguration()
         konfig = k
         namensStand = k
+        if k.cloudAktiv {
+            let dienst = cloud
+            Task { await dienst.uebertragen(k) }
+        }
     }
 
     // MARK: Ansage

@@ -61,6 +61,25 @@ struct AnsageView: View {
                 .listRowInsets(EdgeInsets())
             }
 
+            if model.konfig.cloudAktiv {
+                Section {
+                    Label {
+                        VStack(alignment: .leading, spacing: 2) {
+                            Text("Cloud-Anrufbeantworter aktiv").font(.subheadline.weight(.semibold))
+                            Text(model.cloud.syncFehler.map { "Übertragung fehlgeschlagen: \($0)" }
+                                 ?? model.cloud.letzteUebertragung.map { "Zuletzt übertragen \($0.formatted(date: .omitted, time: .shortened))" }
+                                 ?? "Ansage wechselt automatisch mit Status und Kalender")
+                                .font(.caption).foregroundStyle(model.cloud.syncFehler == nil ? Color.secondary : Color.red)
+                        }
+                    } icon: {
+                        Image(systemName: "icloud.and.arrow.up").foregroundStyle(.tint)
+                    }
+                    NavigationLink("Einstellungen & Probeanruf") { CloudView() }
+                } footer: {
+                    Text("Erkannte Anrufer werden in der Cloud zusätzlich mit Namen begrüßt („Guten Tag, Frau Dr. Schneider!“).")
+                }
+            }
+
             Section {
                 Button {
                     hinweise.isEmpty ? exportieren() : (hinweisVorExport = true)
@@ -79,9 +98,11 @@ struct AnsageView: View {
                     Label("Ansage in die Mailbox bringen", systemImage: "questionmark.circle")
                 }
             } header: {
-                Text("Aktivieren")
+                Text(model.konfig.cloudAktiv ? "Mailbox (Ausweichlösung)" : "Aktivieren")
             } footer: {
-                Text("iOS erlaubt keiner App, Anrufe selbst anzunehmen. Die Ansage läuft deshalb über deine Mailbox, siehe Anleitung.")
+                Text(model.konfig.cloudAktiv
+                     ? "Nur nötig, falls du zusätzlich die Mailbox deines Netzbetreibers mit derselben Ansage besprechen möchtest."
+                     : "iOS erlaubt keiner App, Anrufe selbst anzunehmen. Die Ansage läuft über deine Mailbox oder, empfohlen, über den Cloud-Anrufbeantworter.")
             }
         }
         .navigationTitle("Anrufbeantworter")
@@ -213,9 +234,10 @@ struct MailboxAnleitungView: View {
                 Text("Wechsel der Ansage")
             }
             Section {
-                Text("Ausbaustufe: Eine bedingte Rufumleitung (z. B. `**61*<Nummer>#` bei Nichtannahme) auf einen kleinen Cloud-Anrufbeantworter. Dann wechselt die Ansage automatisch mit Kalender und Status, und erkannte Anrufer werden mit Namen begrüßt. Dafür braucht es einen Telefonie-Dienst; die Firmen-Telefonanlage bleibt außen vor.")
+                Text("Statt der Mailbox nimmt der Cloud-Anrufbeantworter ab: Das iPhone leitet per Rufumleitung (`**61*…#`) dorthin um. Die Ansage wechselt dann automatisch mit Status und Kalender, und erkannte Anrufer werden mit Namen begrüßt. Die Firmen-Telefonanlage bleibt außen vor.")
+                NavigationLink("Cloud-Anrufbeantworter einrichten") { CloudView() }
             } header: {
-                Text("Später: vollautomatisch")
+                Text("Empfohlen: Cloud-Anrufbeantworter")
             }
         }
         .navigationTitle("Ansage aktivieren")

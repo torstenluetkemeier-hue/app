@@ -199,12 +199,15 @@ public struct AppKonfiguration: Codable, Equatable, Sendable {
     /// Bei neuen oder geänderten Namen anbieten, die Aussprache zu prüfen (kein Zwang)
     public var nachAusspracheFragen: Bool
     public var onboardingErledigt: Bool
+    /// Cloud-Anrufbeantworter per Rufumleitung (optional)
+    public var cloud: CloudEinstellung?
 
     public init(profil: Profil = Profil(), vertretungen: [Vertretung] = [], standardVertretungID: UUID? = nil,
                 vertretungNennenIn: Set<Modus> = [.urlaub, .krank, .abwesend], status: Status? = nil,
                 kalender: [KalenderEintrag] = [], texte: AnsageTexte = .firmenStandard,
                 stimme: StimmenEinstellung = .firmenStandard, lexikon: [AusspracheEintrag] = [],
-                testnamen: [String] = [], nachAusspracheFragen: Bool = true, onboardingErledigt: Bool = false) {
+                testnamen: [String] = [], nachAusspracheFragen: Bool = true, onboardingErledigt: Bool = false,
+                cloud: CloudEinstellung? = nil) {
         self.profil = profil
         self.vertretungen = vertretungen
         self.standardVertretungID = standardVertretungID
@@ -217,7 +220,10 @@ public struct AppKonfiguration: Codable, Equatable, Sendable {
         self.testnamen = testnamen
         self.nachAusspracheFragen = nachAusspracheFragen
         self.onboardingErledigt = onboardingErledigt
+        self.cloud = cloud
     }
+
+    public var cloudAktiv: Bool { cloud?.aktiv == true }
 
     public static let beispiel: AppKonfiguration = {
         let thomas = Vertretung(name: "Thomas Müller", telefon: "+49 3641 000 200")

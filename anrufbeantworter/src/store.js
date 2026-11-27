@@ -3,7 +3,7 @@
 
 import fs from 'node:fs';
 import path from 'node:path';
-import { defaultConfig } from './core/defaults.js';
+import { defaultConfig, migrateConfig } from './core/defaults.js';
 
 export class Store {
   constructor(dir) {
@@ -11,7 +11,7 @@ export class Store {
     fs.mkdirSync(dir, { recursive: true });
     this.configFile = path.join(dir, 'config.json');
     this.messagesFile = path.join(dir, 'nachrichten.json');
-    this.config = this.read(this.configFile, defaultConfig);
+    this.config = migrateConfig(this.read(this.configFile, defaultConfig));
     this.nachrichten = this.read(this.messagesFile, () => []);
   }
 
@@ -35,4 +35,5 @@ export class Store {
   saveMessages() { this.write(this.messagesFile, this.nachrichten); }
 
   user(id) { return this.config.users.find((u) => u.id === id) || null; }
+  nachricht(id) { return this.nachrichten.find((n) => n.id === id) || null; }
 }

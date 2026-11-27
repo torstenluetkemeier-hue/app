@@ -34,7 +34,12 @@ struct EinstellungenView: View {
                 Text("Fragt nach, wenn ein neuer Name in die Ansage kommt. Du kannst die Frage jederzeit überspringen.")
             }
             Section {
+                NavigationLink { CloudView() } label: {
+                    LabeledContent("Cloud-Anrufbeantworter", value: model.konfig.cloudAktiv ? "aktiv" : "aus")
+                }
                 NavigationLink("Ansage in die Mailbox bringen") { MailboxAnleitungView() }
+            } header: {
+                Text("Wie die Ansage zum Anrufer kommt")
             }
         }
         .navigationTitle("Einstellungen")
